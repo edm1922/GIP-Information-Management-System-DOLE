@@ -45,12 +45,6 @@ class NotificationController extends Controller
 
         $targetUrl = data_get($data, 'url', route('notifications.index'));
 
-        // Smart repair for old absolute URLs missing the project subdirectory
-        if (str_contains((string)$targetUrl, 'department-documents')) {
-            $query = parse_url($targetUrl, PHP_URL_QUERY);
-            return redirect()->to(route('department-documents.index') . ($query ? '?' . $query : ''));
-        }
-
         return redirect()->to($targetUrl);
     }
 

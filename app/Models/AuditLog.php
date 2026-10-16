@@ -35,7 +35,7 @@ class AuditLog extends Model
     }
 
     /**
-     * Get the parent loggable model (Employee, Document, etc.).
+     * Get the parent loggable model (Intern, User, etc.).
      */
     public function model()
     {
@@ -58,11 +58,8 @@ class AuditLog extends Model
         }
 
         return match ($this->model_type) {
-            'App\Models\Employee' => $this->model->full_name,
             'App\Models\User' => $this->model->username ?? $this->model->name,
             'App\Models\Company' => $this->model->name,
-            'App\Models\Department' => $this->model->name,
-            'App\Models\Document' => $this->model->original_filename,
             default => 'ID: ' . $this->model_id
         };
     }

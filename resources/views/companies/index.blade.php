@@ -4,11 +4,11 @@
         {{-- ── Page Header ── --}}
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h2 class="h4 mb-1 fw-bold">Companies</h2>
-                <p class="text-muted mb-0" style="font-size: 0.85rem;">Manage client companies where employees are deployed.</p>
+                <h2 class="h4 mb-1 fw-bold">Partner Agencies</h2>
+                <p class="text-muted mb-0" style="font-size: 0.85rem;">Manage partner agencies and organizations where interns are deployed.</p>
             </div>
             <button type="button" class="btn btn-brand d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#createCompanyModal">
-                <i class="fas fa-plus"></i> Add Company
+                <i class="fas fa-plus"></i> Add Partner Agency
             </button>
         </div>
 
@@ -24,16 +24,16 @@
             </div>
         @endif
 
-        {{-- ── Companies Table ── --}}
+        {{-- ── Partner Agencies Table ── --}}
         <div class="card shadow-sm">
             <div class="doc-table-wrapper" style="border: none;">
                 <table class="doc-table">
                     <thead>
                         <tr>
                             <th style="width: 100px;">Code</th>
-                            <th>Company Name</th>
+                            <th>Agency Name</th>
                             <th style="width: 120px; text-align: center;">Status</th>
-                            <th style="width: 140px; text-align: center;">Active Employees</th>
+                            <th style="width: 140px; text-align: center;">Assigned Interns</th>
                             <th style="width: 150px; text-align: center;">Actions</th>
                         </tr>
                     </thead>
@@ -56,14 +56,14 @@
                                     @endif
                                 </td>
                                 <td class="text-center">
-                                    <span class="fw-semibold" style="color: #374151;">{{ $company->active_employees_count }}</span>
+                                    <span class="fw-semibold" style="color: #374151;">{{ $company->interns_count }}</span>
                                 </td>
                                 <td class="text-center">
                                     <div class="d-flex justify-content-center gap-2">
                                         {{-- Edit --}}
                                         <button type="button" 
                                                 class="btn-doc-action"
-                                                title="Edit company"
+                                                title="Edit agency"
                                                 @click="openEditModal({{ json_encode([
                                                     'id' => $company->id,
                                                     'name' => $company->name,
@@ -82,8 +82,8 @@
                                                 @click="openConfirmModal(
                                                     '{{ route('settings.companies.toggle-active', $company) }}',
                                                     'PATCH',
-                                                    '{{ $company->is_active ? 'Deactivate Company' : 'Reactivate Company' }}',
-                                                    'Are you sure you want to {{ $company->is_active ? 'deactivate' : 'reactivate' }} &lt;strong&gt;{{ addslashes($company->name) }}&lt;/strong&gt;? {{ $company->is_active ? 'It will no longer appear as an option for new assignments.' : 'It will be available for new assignments again.' }}',
+                                                    '{{ $company->is_active ? 'Deactivate Partner Agency' : 'Reactivate Partner Agency' }}',
+                                                    'Are you sure you want to {{ $company->is_active ? 'deactivate' : 'reactivate' }} &lt;strong&gt;{{ addslashes($company->name) }}&lt;/strong&gt;? {{ $company->is_active ? 'It will no longer appear as an option for new intern placements.' : 'It will be available for new intern placements again.' }}',
                                                     '{{ $company->is_active ? 'Deactivate' : 'Reactivate' }}',
                                                     '{{ $company->is_active ? 'danger' : 'success' }}',
                                                     '{{ $company->is_active ? 'fa-ban' : 'fa-check' }}'
@@ -92,15 +92,15 @@
                                         </button>
 
                                         {{-- Delete --}}
-                                        @if($company->active_employees_count == 0)
+                                        @if($company->interns_count == 0)
                                             <button type="button"
                                                     class="btn-doc-action"
-                                                    title="Delete company"
+                                                    title="Delete agency"
                                                     style="border-color: #ef4444; color: #ef4444;"
                                                     @click="openConfirmModal(
                                                         '{{ route('settings.companies.destroy', $company) }}',
                                                         'DELETE',
-                                                        'Delete Company',
+                                                        'Delete Partner Agency',
                                                         'Are you sure you want to permanently delete &lt;strong&gt;{{ addslashes($company->name) }}&lt;/strong&gt;? This action cannot be undone.',
                                                         'Delete',
                                                         'danger',
@@ -111,7 +111,7 @@
                                         @else
                                             <button type="button"
                                                     class="btn-doc-action"
-                                                    title="Cannot delete companies with active employees"
+                                                    title="Cannot delete agencies with assigned interns"
                                                     style="border-color: #d1d5db; color: #9ca3af; cursor: not-allowed;"
                                                     disabled>
                                                 <i class="fas fa-trash" style="font-size: 0.7rem;"></i>
@@ -123,8 +123,8 @@
                         @empty
                             <tr>
                                 <td colspan="5" class="text-center text-muted py-5">
-                                    <i class="fas fa-briefcase mb-2" style="font-size: 2rem; opacity: 0.3;"></i>
-                                    <p class="mb-0 mt-2">No companies found.</p>
+                                    <i class="fas fa-handshake mb-2" style="font-size: 2rem; opacity: 0.3;"></i>
+                                    <p class="mb-0 mt-2">No partner agencies found.</p>
                                 </td>
                             </tr>
                         @endforelse

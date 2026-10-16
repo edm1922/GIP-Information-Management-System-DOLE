@@ -2,12 +2,13 @@
 
 namespace Database\Factories;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
+ * @extends Factory<User>
  */
 class UserFactory extends Factory
 {
@@ -27,11 +28,10 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'must_change_password' => false,
-            'role' => 'viewer',
+            'role' => 'intern',
             'remember_token' => Str::random(10),
         ];
     }
-
 
     /**
      * Indicate that the user has the admin role.
@@ -44,22 +44,32 @@ class UserFactory extends Factory
     }
 
     /**
+     * Indicate that the user has the peso manager role.
+     */
+    public function pesoManager(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'peso_manager',
+        ]);
+    }
+
+    /**
+     * Indicate that the user has the intern role.
+     */
+    public function intern(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => 'intern',
+        ]);
+    }
+
+    /**
      * Indicate that the user has the encoder role.
      */
     public function encoder(): static
     {
         return $this->state(fn (array $attributes) => [
             'role' => 'encoder',
-        ]);
-    }
-
-    /**
-     * Indicate that the user has the viewer role.
-     */
-    public function viewer(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'role' => 'viewer',
         ]);
     }
 }

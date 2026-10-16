@@ -2,16 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AuditLog;
 use App\Models\Company;
-use App\Models\Department;
-use App\Models\Document;
-use App\Models\DocumentLocation;
-use App\Models\DocumentType;
-use App\Models\Employee;
-use App\Models\Folder;
-use App\Models\FolderLocation;
-use App\Models\User;
+use App\Models\Intern;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -19,268 +11,165 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class ReportController extends Controller
 {
     /**
-     * Show the report generation interface.
+     * Show the intern report generation interface.
      */
-    public function index()
+    public function internIndex()
     {
-        $companies = Company::orderBy('name')->get();
-        $departments = Department::orderBy('name')->get();
-        $documentTypes = DocumentType::orderBy('name')->get();
-        $users = User::orderBy('last_name')->get();
+        $agencies = Company::query()->where('is_partner_agency', true)->orderBy('name')->get();
 
-        return view('reports.generate', compact('companies', 'departments', 'documentTypes', 'users'));
+        return view('reports.intern', compact('agencies'));
     }
 
     /**
-     * Export Employee Master List to CSV.
+     * Export the intern roster to CSV.
      */
-    public function exportEmployees(Request $request): StreamedResponse
+    public function exportInterns(Request $request): StreamedResponse
     {
         $validated = $request->validate([
-            'company_id' => ['nullable', 'integer', 'exists:companies,id'],
-            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
-            'status' => ['nullable', Rule::in(['active', 'awol', 'resigned'])],
-            'year' => ['nullable', 'integer'],
-            'month' => ['nullable', 'integer', 'min:1', 'max:12'],
-            'columns' => ['nullable', 'array'],
+            'status' => ['nullable', Rule::in(Intern::STATUSES)],
+            'partner_agency_id' => ['nullable', 'integer', 'exists:companies,id'],
+            'expiring' => ['nullable', 'in:all,soon,expired'],
         ]);
 
-        $query = Employee::with(['company', 'folder', 'folderLocation', 'bankType']);
-
-        if (! empty($validated['company_id'])) {
-            $query->where('company_id', (int) $validated['company_id']);
-        }
+        $query = Intern::with(['user', 'partnerAgency']);
 
         if (! empty($validated['status'])) {
             $query->where('status', $validated['status']);
-            if ($validated['status'] === 'resigned') {
-                $query->withTrashed();
-            }
         }
 
-        if (! empty($validated['year'])) {
-            $query->whereYear('date_hired', $validated['year']);
+        if (! empty($validated['partner_agency_id'])) {
+            $query->where('partner_agency_id', (int) $validated['partner_agency_id']);
         }
 
-        if (! empty($validated['month'])) {
-            $query->whereMonth('date_hired', $validated['month']);
+        $expiring = $validated['expiring'] ?? 'all';
+        if ($expiring === 'soon') {
+            $query->expiringSoon(30);
+        } elseif ($expiring === 'expired') {
+            $query->whereNotNull('contract_end_date')
+                ->whereDate('contract_end_date', '<', now()->startOfDay());
         }
 
-        // If filtering by department, we might need a join or a whereHas if employees were linked to departments
-        // However, in this system, employees are primarily linked to Companies and Physical Locations.
-        // We will scope by Company if department is requested but not directly available on Employee.
-
-        $employees = $query->orderBy('last_name')->orderBy('first_name')->get();
-
-        // Define all possible columns and their headers
-        $columnMap = [
-            'system_id' => 'System ID',
-            'barcode_id' => 'Barcode ID',
-            'full_name' => 'Full Name',
-            'company' => 'Company',
-            'status' => 'Status',
-            'date_hired' => 'Date Hired',
-            'folder_code' => 'Folder Code',
-            'location' => 'Physical Location',
-            'atm_status' => 'ATM Status',
-            'bank_type' => 'Bank Type',
-            'archive_date' => 'Archive Date',
-        ];
-
-        // Determine which columns to export
-        $selectedColumns = $validated['columns'] ?? array_keys($columnMap);
-        $headersRow = array_values(array_intersect_key($columnMap, array_flip($selectedColumns)));
+        $interns = $query->orderBy('id')->get();
 
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="employee_master_list_'.now()->format('Y-m-d_His').'.csv"',
+            'Content-Disposition' => 'attachment; filename="intern_master_list_'.now()->format('Y-m-d_His').'.csv"',
         ];
 
-        $callback = function () use ($employees, $selectedColumns, $headersRow) {
+        return response()->stream(function () use ($interns) {
             $file = fopen('php://output', 'w');
-            fputcsv($file, $headersRow);
-
-            foreach ($employees as $emp) {
-                $row = [];
-                foreach ($selectedColumns as $col) {
-                    $row[] = match ($col) {
-                        'system_id' => $emp->system_id,
-                        'barcode_id' => $emp->barcode_id,
-                        'full_name' => $emp->full_name,
-                        'company' => $emp->company?->name ?? 'N/A',
-                        'status' => ucfirst($emp->status),
-                        'date_hired' => $emp->date_hired?->format('Y-m-d') ?? '',
-                        'folder_code' => $emp->folder?->folder_code ?? '',
-                        'location' => $emp->folderLocation ? $emp->folderLocation->full_location : '',
-                        'atm_status' => $emp->atm_status,
-                        'bank_type' => $emp->bankType?->name ?? 'N/A',
-                        'archive_date' => $emp->archive_date?->format('Y-m-d') ?? ($emp->deleted_at?->format('Y-m-d') ?? ''),
-                        default => '',
-                    };
-                }
-                fputcsv($file, $row);
-            }
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
-    }
-
-    /**
-     * Export Company Summary (Total Employees per Company).
-     */
-    public function exportCompanySummary(): StreamedResponse
-    {
-        $companies = Company::withCount([
-            'employees as active_count' => function ($query) {
-                $query->where('status', '!=', 'resigned');
-            },
-            'employees as resigned_count' => function ($query) {
-                $query->where('status', 'resigned')->withTrashed();
-            },
-        ])->get();
-
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="company_summary_'.now()->format('Y-m-d_His').'.csv"',
-        ];
-
-        $callback = function () use ($companies) {
-            $file = fopen('php://output', 'w');
-
             fputcsv($file, [
-                'Company Name',
-                'Active Employees',
-                'Resigned Employees',
-                'Total Employees',
+                'Name', 'Username', 'Partner Agency', 'Type', 'Batch',
+                'Contract Start', 'Contract End', 'Required Hours', 'Rendered Hours',
+                'Progress %', 'Status',
             ]);
 
-            foreach ($companies as $company) {
-                $total = $company->active_count + $company->resigned_count;
+            foreach ($interns as $intern) {
                 fputcsv($file, [
-                    $company->name,
-                    $company->active_count,
-                    $company->resigned_count,
-                    $total,
+                    $intern->name,
+                    $intern->user?->username ?? '',
+                    $intern->partnerAgency?->name ?? '',
+                    $intern->intern_type ?? '',
+                    $intern->batch ?? '',
+                    $intern->contract_start_date?->format('Y-m-d') ?? '',
+                    $intern->contract_end_date?->format('Y-m-d') ?? '',
+                    $intern->required_hours,
+                    $intern->rendered_hours,
+                    $intern->progress_percent,
+                    ucfirst($intern->status),
                 ]);
             }
 
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
-    }
-
-    /**
-     * Export Storage Utilization (Folders per Row/Column).
-     */
-    public function exportStorageUtilization(Request $request): StreamedResponse
-    {
-        $type = $request->get('type', '201');
-
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="storage_audit_'.$type.'_'.now()->format('Y-m-d').'.csv"',
-        ];
-
-        return response()->stream(function () use ($type) {
-            $file = fopen('php://output', 'w');
-
-            if ($type === '201') {
-                fputcsv($file, ['Location', 'Total Slots', 'Occupied Slots', 'Available Slots']);
-                $locations = FolderLocation::withCount(['employees' => function ($query) {
-                    $query->withTrashed();
-                }])
-                    ->orderByRaw('LENGTH(row_name) ASC')
-                    ->orderBy('row_name', 'ASC')
-                    ->get();
-
-                foreach ($locations as $loc) {
-                    $total = $loc->max_capacity ?? 500;
-                    $occupied = $loc->employees_count;
-                    $left = max(0, $total - $occupied);
-                    fputcsv($file, [$loc->full_location, $total, $occupied, $left]);
-                }
-            } else {
-                fputcsv($file, ['Storage Location', 'Unique Folders Count', 'Total Documents Count']);
-                // Department Documents use DocumentLocation
-                $locations = DocumentLocation::withCount([
-                    'documents',
-                    'documents as unique_folders_count' => function ($q) {
-                        $q->select(\DB::raw('count(distinct(document_folder_id))'));
-                    },
-                ])->get();
-
-                foreach ($locations as $loc) {
-                    fputcsv($file, [
-                        $loc->name,
-                        $loc->unique_folders_count ?? 0,
-                        $loc->documents_count ?? 0,
-                    ]);
-                }
-            }
             fclose($file);
         }, 200, $headers);
     }
 
     /**
-     * Export Available Folders (Individual reassignable folder codes).
+     * Export the intern hours monitoring summary to CSV.
      */
-    public function exportAvailableFolders(): StreamedResponse
+    public function exportInternHours(Request $request): StreamedResponse
     {
-        $folders = Folder::query()
-            ->with('company:id,name,code')
-            ->where('is_available', true)
-            ->orderBy('folder_code', 'asc')
+        $validated = $request->validate([
+            'status' => ['nullable', Rule::in(Intern::STATUSES)],
+        ]);
+
+        $query = Intern::with(['partnerAgency']);
+
+        if (! empty($validated['status'])) {
+            $query->where('status', $validated['status']);
+        }
+
+        $interns = $query->orderByDesc('rendered_hours')->get();
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="intern_hours_summary_'.now()->format('Y-m-d_His').'.csv"',
+        ];
+
+        return response()->stream(function () use ($interns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, ['Intern', 'Partner Agency', 'Required Hours', 'Rendered Hours', 'Remaining Hours', 'Progress %', 'Status']);
+
+            $totalRequired = 0;
+            $totalRendered = 0;
+
+            foreach ($interns as $intern) {
+                $totalRequired += (int) $intern->required_hours;
+                $totalRendered += (int) $intern->rendered_hours;
+
+                fputcsv($file, [
+                    $intern->name,
+                    $intern->partnerAgency?->name ?? '',
+                    $intern->required_hours,
+                    $intern->rendered_hours,
+                    $intern->hours_remaining,
+                    $intern->progress_percent,
+                    ucfirst($intern->status),
+                ]);
+            }
+
+            fputcsv($file, ['TOTAL', '', $totalRequired, $totalRendered, max(0, $totalRequired - $totalRendered), '', '']);
+
+            fclose($file);
+        }, 200, $headers);
+    }
+
+    /**
+     * Export the partner-agency summary (interns per agency) to CSV.
+     */
+    public function exportInternAgencySummary(): StreamedResponse
+    {
+        $agencies = Company::query()
+            ->where('is_partner_agency', true)
+            ->with('interns')
+            ->orderBy('name')
             ->get();
 
-        $locationsByCompany = FolderLocation::query()
-            ->with('company:id,name,code')
-            ->orderBy('company_id')
-            ->orderByRaw('range_start asc')
-            ->get()
-            ->groupBy('company_id');
-
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="available_folder_codes_'.now()->format('Y-m-d').'.csv"',
+            'Content-Disposition' => 'attachment; filename="intern_agency_summary_'.now()->format('Y-m-d_His').'.csv"',
         ];
 
-        return response()->stream(function () use ($folders, $locationsByCompany) {
+        return response()->stream(function () use ($agencies) {
             $file = fopen('php://output', 'w');
-            fputcsv($file, ['Folder Code', 'Physical Location', 'Range Status']);
+            fputcsv($file, [
+                'Partner Agency', 'Total Interns', 'Active', 'Inactive', 'Completed',
+                'Total Required Hours', 'Total Rendered Hours', 'Avg Progress %',
+            ]);
 
-            foreach ($folders as $folder) {
-                $codeString = $folder->folder_code;
-                preg_match('/\d+$/', (string) $codeString, $matches);
-                $numericPart = isset($matches[0]) ? (int) $matches[0] : 0;
-
-                $locGroup = null;
-                $companyLocations = $locationsByCompany->get($folder->company_id, collect());
-
-                if ($numericPart > 0) {
-                    foreach ($companyLocations as $location) {
-                        if ($location->range_start === null || $location->range_end === null) {
-                            continue;
-                        }
-
-                        if ($numericPart >= (int) $location->range_start && $numericPart <= (int) $location->range_end) {
-                            $locGroup = $location;
-                            break;
-                        }
-                    }
-                }
-
-                $locationLabel = 'Unknown Location';
-                if ($locGroup) {
-                    $locationLabel = ($locGroup->company?->code ?? 'N/A').' - Row '.$locGroup->row_name;
-                }
+            foreach ($agencies as $agency) {
+                $interns = $agency->interns;
+                $count = $interns->count();
 
                 fputcsv($file, [
-                    $codeString,
-                    $locationLabel,
-                    $locGroup ? $locGroup->range : 'N/A',
+                    $agency->name,
+                    $count,
+                    $interns->where('status', 'active')->count(),
+                    $interns->where('status', 'inactive')->count(),
+                    $interns->where('status', 'completed')->count(),
+                    $interns->sum('required_hours'),
+                    $interns->sum('rendered_hours'),
+                    $count > 0 ? round($interns->avg(fn ($intern) => $intern->progress_percent), 2) : 0,
                 ]);
             }
 
@@ -289,142 +178,58 @@ class ReportController extends Controller
     }
 
     /**
-     * Export Audit Logs to CSV.
+     * Export the intern contract expiry report to CSV.
      */
-    public function exportAuditLogs(Request $request): StreamedResponse
+    public function exportInternExpiry(Request $request): StreamedResponse
     {
         $validated = $request->validate([
-            'user_id' => ['nullable', 'integer', 'exists:users,id'],
-            'date_from' => ['nullable', 'date'],
-            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
-            'year' => ['nullable', 'integer'],
-            'month' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'expiry_status' => ['nullable', 'in:all,expired,expiring,valid'],
         ]);
 
-        $query = AuditLog::with('user')->orderBy('created_at', 'desc');
-
-        if (! empty($validated['user_id'])) {
-            $query->where('user_id', (int) $validated['user_id']);
-        }
-
-        if (! empty($validated['date_from'])) {
-            $query->whereDate('created_at', '>=', $validated['date_from']);
-        }
-
-        if (! empty($validated['date_to'])) {
-            $query->whereDate('created_at', '<=', $validated['date_to']);
-        }
-
-        if (! empty($validated['year'])) {
-            $query->whereYear('created_at', $validated['year']);
-        }
-
-        if (! empty($validated['month'])) {
-            $query->whereMonth('created_at', $validated['month']);
-        }
-
-        $logs = $query->get();
-
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="audit_logs_'.now()->format('Y-m-d_His').'.csv"',
-        ];
-
-        $callback = function () use ($logs) {
-            $file = fopen('php://output', 'w');
-
-            fputcsv($file, [
-                'Timestamp',
-                'User',
-                'Action',
-                'Entity Type',
-                'Description',
-            ]);
-
-            foreach ($logs as $log) {
-                fputcsv($file, [
-                    $log->created_at->format('Y-m-d H:i:s'),
-                    $log->user?->name ?? 'System',
-                    strtoupper($log->action),
-                    $log->model_type ? class_basename($log->model_type) : 'N/A',
-                    $log->description,
-                ]);
-            }
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
-    }
-
-    /**
-     * Export Document Expiry report to CSV.
-     */
-    public function exportExpiryReport(Request $request): StreamedResponse
-    {
-        $validated = $request->validate([
-            'expiry_status' => ['nullable', 'string', 'in:all,expired,expiring,valid'],
-            'year' => ['nullable', 'integer'],
-            'month' => ['nullable', 'integer', 'min:1', 'max:12'],
-            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
-        ]);
-
-        $query = Document::with(['department', 'documentType', 'documentFolder'])
-            ->whereNotNull('expiry_date')
-            ->where('status', 'active');
-
-        if (! empty($validated['department_id'])) {
-            $query->where('department_id', (int) $validated['department_id']);
-        }
-
-        // Apply Status Logic
         $status = $validated['expiry_status'] ?? 'all';
         $now = now()->startOfDay();
         $thirtyDays = now()->addDays(30)->endOfDay();
 
+        $query = Intern::with(['partnerAgency'])
+            ->whereNotNull('contract_end_date');
+
         if ($status === 'expired') {
-            $query->whereDate('expiry_date', '<', $now);
+            $query->whereDate('contract_end_date', '<', $now);
         } elseif ($status === 'expiring') {
-            $query->whereBetween('expiry_date', [$now, $thirtyDays]);
+            $query->whereBetween('contract_end_date', [$now, $thirtyDays]);
         } elseif ($status === 'valid') {
-            $query->whereDate('expiry_date', '>', $thirtyDays);
+            $query->whereDate('contract_end_date', '>', $thirtyDays);
         }
 
-        if (! empty($validated['year'])) {
-            $query->whereYear('expiry_date', $validated['year']);
-        }
-
-        if (! empty($validated['month'])) {
-            $query->whereMonth('expiry_date', $validated['month']);
-        }
-
-        $documents = $query->orderBy('expiry_date', 'asc')->get();
+        $interns = $query->orderBy('contract_end_date')->get();
 
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="expiry_report_'.$status.'_'.now()->format('Y-m-d').'.csv"',
+            'Content-Disposition' => 'attachment; filename="intern_contract_expiry_'.$status.'_'.now()->format('Y-m-d').'.csv"',
         ];
 
-        return response()->stream(function () use ($documents) {
+        return response()->stream(function () use ($interns) {
             $file = fopen('php://output', 'w');
-            fputcsv($file, ['Expiry Status', 'Expiry Date', 'Filename', 'Document Type', 'Department']);
+            fputcsv($file, ['Intern', 'Partner Agency', 'Contract End', 'Days Remaining', 'Expiry Status', 'Status']);
 
-            foreach ($documents as $doc) {
-                $status = 'Valid';
-                if ($doc->expiry_date->isPast()) {
-                    $status = 'EXPIRED';
-                } elseif ($doc->isExpiringSoon(30)) {
-                    $status = 'Expiring Soon';
+            foreach ($interns as $intern) {
+                $expiry = 'Valid';
+                if ($intern->isExpired()) {
+                    $expiry = 'EXPIRED';
+                } elseif ($intern->isExpiringSoon(30)) {
+                    $expiry = 'Expiring Soon';
                 }
 
                 fputcsv($file, [
-                    $status,
-                    $doc->expiry_date->format('Y-m-d'),
-                    $doc->original_filename,
-                    $doc->documentType?->name ?? 'N/A',
-                    $doc->department?->name ?? 'N/A',
+                    $intern->name,
+                    $intern->partnerAgency?->name ?? '',
+                    $intern->contract_end_date?->format('Y-m-d') ?? '',
+                    $intern->days_remaining,
+                    $expiry,
+                    ucfirst($intern->status),
                 ]);
             }
+
             fclose($file);
         }, 200, $headers);
     }

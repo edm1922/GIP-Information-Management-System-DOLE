@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Department;
 use App\Models\User;
 use App\Http\Requests\UserRequest;
 use App\Services\AuditService;
@@ -17,10 +16,9 @@ class UserController extends Controller
      */
     public function index()
     {
-        $users = User::with('authorizedDepartments')->latest()->paginate(10);
-        $departments = Department::where('is_active', true)->orderBy('name')->get();
+        $users = User::whereIn('role', ['admin', 'peso_manager'])->latest()->paginate(10);
 
-        return view('users.index', compact('users', 'departments'));
+        return view('users.index', compact('users'));
     }
 
     /**
@@ -28,8 +26,7 @@ class UserController extends Controller
      */
     public function create()
     {
-        $departments = Department::where('is_active', true)->orderBy('name')->get();
-        return view('users.create', compact('departments'));
+        return view('users.create');
     }
 
     /**
@@ -47,12 +44,6 @@ class UserController extends Controller
         
         $user = User::create($validated);
 
-        // Sync department access (only for non-admin roles)
-        if ($user->role !== 'admin') {
-            $departmentIds = $request->input('department_ids', []);
-            $user->authorizedDepartments()->sync($departmentIds);
-        }
-        
         AuditService::log('created', "Created new user", $user);
 
         return redirect()->route('settings.users.index')
@@ -72,10 +63,7 @@ class UserController extends Controller
      */
     public function edit(User $user)
     {
-        $departments = Department::where('is_active', true)->orderBy('name')->get();
-        $assignedDepartmentIds = $user->authorizedDepartments()->pluck('departments.id')->toArray();
-
-        return view('users.edit', compact('user', 'departments', 'assignedDepartmentIds'));
+        return view('users.edit', compact('user'));
     }
 
     /**
@@ -95,30 +83,8 @@ class UserController extends Controller
         }
 
         $validated['is_active'] = $request->boolean('is_active', true);
-        
+
         $user->update($validated);
-
-        // Sync department access
-        if ($user->role !== 'admin') {
-            $oldDeptIds = $user->authorizedDepartments()->pluck('departments.id')->toArray();
-            $newDeptIds = $request->input('department_ids', []);
-            $user->authorizedDepartments()->sync($newDeptIds);
-
-            // Audit log if departments changed
-            $added = array_diff($newDeptIds, $oldDeptIds);
-            $removed = array_diff($oldDeptIds, $newDeptIds);
-            if (!empty($added) || !empty($removed)) {
-                $addedNames = !empty($added) ? Department::whereIn('id', $added)->pluck('name')->toArray() : [];
-                $removedNames = !empty($removed) ? Department::whereIn('id', $removed)->pluck('name')->toArray() : [];
-                AuditService::log('updated', "Updated department access for user", $user, [
-                    'departments_added' => $addedNames,
-                    'departments_removed' => $removedNames,
-                ]);
-            }
-        } else {
-            // Admins access everything — clear any stale assignments
-            $user->authorizedDepartments()->detach();
-        }
 
         AuditService::log('updated', "Updated user", $user);
 

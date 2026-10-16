@@ -2,18 +2,20 @@
 
 return [
 
-    'name' => env('APP_BRAND_NAME', 'CSC Document Management System'),
+    'name' => env('APP_BRAND_NAME', 'GIP Information Management System (GIMS)'),
 
-    'short_name' => env('APP_BRAND_SHORT', 'CSC-DMS'),
+    'short_name' => env('APP_BRAND_SHORT', 'GIMS'),
 
     'folder_prefix' => env('APP_FOLDER_PREFIX', 'CSC'),
 
     'barcode_prefix' => env('APP_BARCODE_PREFIX', 'CSC'),
 
-    'password_suffix' => env('APP_PASSWORD_SUFFIX', 'csc'),
+    'password_suffix' => env('APP_PASSWORD_SUFFIX', 'tpc'),
 
-    'logo' => env('APP_BRAND_LOGO', 'logo2.png'),
+    'logo' => env('APP_BRAND_LOGO', 'image/dole-emblem.png'),
 
-    'primary_color' => env('APP_BRAND_COLOR', '#dd270d'),
+    'logo_full' => env('APP_BRAND_LOGO_FULL', 'image/dole-logo.png'),
+
+    'primary_color' => env('APP_BRAND_COLOR', '#1E429B'),
 
 ];

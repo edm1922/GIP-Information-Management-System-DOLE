@@ -2,13 +2,16 @@
 
 namespace App\Providers;
 
-use App\Models\Document;
-use App\Policies\DepartmentDocumentPolicy;
+use App\Models\Intern;
+use App\Models\InternDocument;
+use App\Policies\InternDocumentPolicy;
+use App\Policies\InternPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 
 class AuthServiceProvider extends ServiceProvider
 {
     protected $policies = [
-        Document::class => DepartmentDocumentPolicy::class,
+        Intern::class => InternPolicy::class,
+        InternDocument::class => InternDocumentPolicy::class,
     ];
 }

@@ -27,10 +27,14 @@ return new class extends Migration
 
         // 3. Add row_id to columns
         Schema::table('columns', function (Blueprint $table) {
-            $table->dropForeign('racks_cabinet_id_foreign');
+            if (\Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
+                $table->dropForeign('racks_cabinet_id_foreign');
+            }
             $table->renameColumn('cabinet_id', 'rack_id');
             // Drop old unique constraint using exact index name
-            $table->dropUnique('racks_cabinet_id_rack_code_unique');
+            if (\Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
+                $table->dropUnique('racks_cabinet_id_rack_code_unique');
+            }
             $table->renameColumn('rack_code', 'column_code');
             $table->foreignId('row_id')->nullable()->constrained()->cascadeOnDelete();
         });
@@ -79,7 +83,9 @@ return new class extends Migration
 
         // 5. Update foreign keys in folders (formerly slots)
         Schema::table('folders', function (Blueprint $table) {
-            $table->dropForeign('slots_rack_id_foreign');
+            if (\Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
+                $table->dropForeign('slots_rack_id_foreign');
+            }
             $table->renameColumn('rack_id', 'column_id');
         });
         Schema::table('folders', function (Blueprint $table) {

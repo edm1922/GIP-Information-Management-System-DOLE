@@ -4,7 +4,7 @@
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
                 <h2 class="h4 mb-1 fw-bold">User Management</h2>
-                <p class="text-muted mb-0" style="font-size: 0.85rem;">Manage system access, roles, and department permissions.</p>
+                <p class="text-muted mb-0" style="font-size: 0.85rem;">Manage administrative and staff accounts (Admin, PESO Manager).</p>
             </div>
             <button class="btn btn-brand d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#createUserModal">
                 <i class="fas fa-plus"></i> Add User
@@ -32,8 +32,7 @@
                         <tr>
                             <th style="width: 200px;">Name</th>
                             <th style="width: 130px;">Username</th>
-                            <th style="width: 100px;">Role</th>
-                            <th style="min-width: 200px;">Department Access</th>
+                            <th style="width: 130px;">Role</th>
                             <th style="width: 100px; text-align: center;">Status</th>
                             <th style="width: 140px; text-align: center;">Last Active</th>
                             <th style="width: 150px; text-align: center;">Actions</th>
@@ -53,27 +52,10 @@
                                 <td>
                                     @if($user->role === 'admin')
                                         <span class="badge" style="background: rgba(220, 38, 38, 0.1); color: #dc2626; padding: 5px 10px; font-weight: 600;">Admin</span>
-                                    @elseif($user->role === 'encoder')
-                                        <span class="badge" style="background: rgba(37, 99, 235, 0.1); color: #2563eb; padding: 5px 10px; font-weight: 600;">Encoder</span>
+                                    @elseif($user->role === 'peso_manager')
+                                        <span class="badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; padding: 5px 10px; font-weight: 600;">PESO Manager</span>
                                     @else
-                                        <span class="badge" style="background: rgba(75, 85, 99, 0.1); color: #4b5563; padding: 5px 10px; font-weight: 600;">Viewer</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($user->role === 'admin')
-                                        <span class="dept-badge dept-badge--all">
-                                            <i class="fas fa-globe-americas me-1" style="font-size: 0.65rem;"></i>All Departments
-                                        </span>
-                                    @elseif($user->authorizedDepartments->isNotEmpty())
-                                        <div class="dept-badges-wrap">
-                                            @foreach($user->authorizedDepartments as $dept)
-                                                <span class="dept-badge">{{ $dept->name }}</span>
-                                            @endforeach
-                                        </div>
-                                    @else
-                                        <span class="text-muted" style="font-size: 0.8rem; font-style: italic;">
-                                            <i class="fas fa-exclamation-circle me-1" style="color: #f59e0b;"></i>No departments assigned
-                                        </span>
+                                        <span class="badge" style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9; padding: 5px 10px; font-weight: 600;">{{ ucfirst(str_replace('_', ' ', $user->role)) }}</span>
                                     @endif
                                 </td>
                                 <td class="text-center">
@@ -101,7 +83,6 @@
                                                     'suffix' => $user->suffix,
                                                     'username' => $user->username,
                                                     'role' => $user->role,
-                                                    'department_ids' => $user->authorizedDepartments->pluck('id')->map(fn($id) => (int) $id)->values()->toArray(),
                                                 ]) }})">
                                             <i class="fas fa-pen" style="font-size: 0.7rem;"></i>
                                         </button>
@@ -153,7 +134,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-5">
+                                <td colspan="6" class="text-center text-muted py-5">
                                     <i class="fas fa-users mb-2" style="font-size: 2rem; opacity: 0.3;"></i>
                                     <p class="mb-0 mt-2">No users found.</p>
                                 </td>
@@ -191,8 +172,7 @@
                     suffix: '',
                     username: '',
                     role: '',
-                    is_active: true,
-                    department_ids: []
+                    is_active: true
                 },
 
                 // Confirmation Modal Data for Delete
@@ -215,8 +195,7 @@
                             suffix: '{!! addslashes(old("suffix")) !!}',
                             username: '{!! addslashes(old("username")) !!}',
                             role: '{!! addslashes(old("role")) !!}',
-                            is_active: {{ old('is_active', 1) ? 'true' : 'false' }},
-                            department_ids: @json(old('department_ids', []))
+                            is_active: {{ old('is_active', 1) ? 'true' : 'false' }}
                         };
                         var modal = new bootstrap.Modal(document.getElementById('editUserModal'));
                         modal.show();

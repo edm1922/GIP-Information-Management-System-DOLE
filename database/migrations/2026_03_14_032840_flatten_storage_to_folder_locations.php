@@ -91,35 +91,37 @@ return new class extends Migration
             }
 
             // Clean up old column and add foreign key
-            if (Schema::hasColumn($tableName, 'folder_id')) {
+            if (Schema::hasColumn($tableName, 'folder_id') && \Illuminate\Support\Facades\DB::getDriverName() !== 'sqlite') {
                 Schema::table($tableName, function (Blueprint $table) use ($tableName) {
                     try {
                         // Attempt to drop with known names
                         $table->dropForeign($tableName . '_folder_id_foreign');
-                    } catch (\Exception $e) {
-                         try {
+                    } catch (\Throwable $e) {
+                        try {
                             $table->dropForeign(['folder_id']);
-                         } catch (\Exception $e2) {}
+                        } catch (\Throwable $e2) {}
                     }
                     try {
                         $table->dropColumn('folder_id');
-                    } catch (\Exception $e) {}
+                    } catch (\Throwable $e) {}
                 });
             }
             
             // Check if foreign key exists using raw SQL
-            $fkExists = DB::select("
-                SELECT CONSTRAINT_NAME 
-                FROM information_schema.KEY_COLUMN_USAGE 
-                WHERE TABLE_NAME = ? 
-                AND CONSTRAINT_NAME = ? 
-                AND TABLE_SCHEMA = DATABASE()
-            ", [$tableName, $tableName . '_folder_location_id_foreign']);
+            if (DB::getDriverName() === 'mysql') {
+                $fkExists = DB::select("
+                    SELECT CONSTRAINT_NAME 
+                    FROM information_schema.KEY_COLUMN_USAGE 
+                    WHERE TABLE_NAME = ? 
+                    AND CONSTRAINT_NAME = ? 
+                    AND TABLE_SCHEMA = DATABASE()
+                ", [$tableName, $tableName . '_folder_location_id_foreign']);
 
-            if (empty($fkExists)) {
-                Schema::table($tableName, function (Blueprint $table) {
-                    $table->foreign('folder_location_id')->references('id')->on('folder_locations')->nullOnDelete();
-                });
+                if (empty($fkExists)) {
+                    Schema::table($tableName, function (Blueprint $table) {
+                        $table->foreign('folder_location_id')->references('id')->on('folder_locations')->nullOnDelete();
+                    });
+                }
             }
         }
 

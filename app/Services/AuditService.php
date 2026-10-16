@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\AuditLog;
-use App\Models\Document;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Request;
 
@@ -21,16 +20,10 @@ class AuditService
         $targetName = null;
         if ($model) {
             $targetName = match (get_class($model)) {
-                'App\Models\Employee' => $model->full_name,
+                'App\Models\Intern' => $model->user?->name ?? 'Intern #'.$model->id,
                 'App\Models\User' => $model->username ?? $model->name,
-                'App\Models\Document' => $model->original_filename,
-                'App\Models\DocumentFolder' => $model->name,
                 'App\Models\DocumentType' => $model->name,
-                'App\Models\DocumentLocation' => $model->name,
-                'App\Models\FolderLocation' => 'Row '.$model->row_name,
-                'App\Models\BankType' => $model->name,
-                'App\Models\Company',
-                'App\Models\Department' => $model->name,
+                'App\Models\Company' => $model->name,
                 default => 'ID: '.$model->id
             };
         }
@@ -46,21 +39,6 @@ class AuditService
             'ip_address' => Request::ip(),
             'user_agent' => Request::userAgent(),
         ]);
-    }
-
-    /**
-     * Log a document-related action.
-     */
-    public static function logDocument(string $action, int $documentId, ?string $description = null, ?array $changes = null): AuditLog
-    {
-        $document = Document::find($documentId);
-
-        return self::log($action, $description, $document, $changes);
-    }
-
-    public static function logDepartmentDocumentLifecycle(string $action, Document $document, array $changes = []): AuditLog
-    {
-        return self::log($action, "Department document {$action}: {$document->system_filename}", $document, $changes);
     }
 
     /**

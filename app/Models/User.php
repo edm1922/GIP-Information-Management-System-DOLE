@@ -3,15 +3,15 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, SoftDeletes;
 
     /**
@@ -64,17 +64,17 @@ class User extends Authenticatable
     public function getNameAttribute(): string
     {
         $name = "{$this->first_name}";
-        
+
         if ($this->middle_name) {
             $name .= " {$this->middle_name}";
         }
-        
+
         $name .= " {$this->last_name}";
-        
+
         if ($this->suffix) {
             $name .= " {$this->suffix}";
         }
-        
+
         return $name;
     }
 
@@ -83,14 +83,14 @@ class User extends Authenticatable
         return $this->role === 'admin';
     }
 
-    public function isEncoder(): bool
+    public function isPesoManager(): bool
     {
-        return $this->role === 'encoder';
+        return $this->role === 'peso_manager';
     }
 
-    public function isViewer(): bool
+    public function isIntern(): bool
     {
-        return $this->role === 'viewer';
+        return $this->role === 'intern';
     }
 
     /**
@@ -106,22 +106,8 @@ class User extends Authenticatable
         return $this->hasMany(AuditLog::class);
     }
 
-    public function uploadedDocuments()
+    public function intern()
     {
-        return $this->hasMany(Document::class, 'uploaded_by');
-    }
-
-    public function authorizedDepartments(): BelongsToMany
-    {
-        return $this->belongsToMany(Department::class, 'department_user_access')->withTimestamps();
-    }
-
-    public function canAccessDepartment(int $departmentId): bool
-    {
-        if ($this->isAdmin()) {
-            return true;
-        }
-
-        return $this->authorizedDepartments()->whereKey($departmentId)->exists();
+        return $this->hasOne(Intern::class);
     }
 }

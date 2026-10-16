@@ -9,13 +9,15 @@ class CompanySeeder extends Seeder
 {
     public function run(): void
     {
-        $companies = [
-            ['name' => 'Company A', 'code' => 'COA', 'is_active' => true],
-            ['name' => 'Company B', 'code' => 'COB', 'is_active' => true],
+        $agencies = [
+            ['name' => 'DOLE Provincial Office', 'code' => 'DOLE-PO', 'is_active' => true, 'is_partner_agency' => true],
+            ['name' => 'PESO Office - Provincial Capitol', 'code' => 'PESO-CAP', 'is_active' => true, 'is_partner_agency' => true],
+            ['name' => 'City Social Welfare and Development Office (CSWDO)', 'code' => 'CSWDO', 'is_active' => true, 'is_partner_agency' => true],
+            ['name' => 'Provincial Human Resource Management Office (PHRMO)', 'code' => 'PHRMO', 'is_active' => true, 'is_partner_agency' => true],
         ];
 
-        foreach ($companies as $company) {
-            Company::create($company);
+        foreach ($agencies as $agency) {
+            Company::firstOrCreate(['code' => $agency['code']], $agency);
         }
     }
 }

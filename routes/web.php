@@ -1,15 +1,11 @@
 <?php
 
 use App\Http\Controllers\Auth\ForcePasswordChangeController;
-use App\Http\Controllers\BankTypeController;
 use App\Http\Controllers\CompanyController;
-use App\Http\Controllers\DepartmentController;
-use App\Http\Controllers\DepartmentDocumentController;
-use App\Http\Controllers\DocumentLocationController;
 use App\Http\Controllers\DocumentTypeController;
-use App\Http\Controllers\EmployeeController;
-use App\Http\Controllers\EmployeeSearchController;
-use App\Http\Controllers\FolderLocationController;
+use App\Http\Controllers\InternController;
+use App\Http\Controllers\InternDocumentController;
+use App\Http\Controllers\MyInternshipController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
@@ -24,7 +20,6 @@ Route::get('/', function () {
 });
 
 use App\Http\Controllers\ActivityLogController;
-use App\Http\Controllers\ArchiveController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReportController;
 
@@ -51,30 +46,6 @@ Route::middleware('auth')->group(function () {
         Route::patch('companies/{company}/toggle-active', [CompanyController::class, 'toggleActive'])
             ->name('companies.toggle-active');
 
-        Route::resource('departments', DepartmentController::class)->except(['show']);
-        Route::patch('departments/{department}/toggle-active', [DepartmentController::class, 'toggleActive'])
-            ->name('departments.toggle-active');
-
-        Route::resource('bank-types', BankTypeController::class)->except(['show']);
-        Route::patch('bank-types/{bankType}/toggle-active', [BankTypeController::class, 'toggleActive'])
-            ->name('bank-types.toggle-active');
-
-        // Folder Locations (Physical Storage)
-        Route::prefix('folder-locations')->name('folder-locations.')->group(function () {
-            Route::get('/', [FolderLocationController::class, 'index'])->name('index');
-            Route::post('/row', [FolderLocationController::class, 'storeRow'])->name('store-row');
-            Route::put('/{folderLocation}', [FolderLocationController::class, 'update'])->name('update');
-            Route::delete('/{folderLocation}', [FolderLocationController::class, 'destroy'])->name('destroy');
-        });
-
-        // Document Locations (Department Documents)
-        Route::prefix('document-locations')->name('document-locations.')->group(function () {
-            Route::get('/', [DocumentLocationController::class, 'index'])->name('index');
-            Route::post('/', [DocumentLocationController::class, 'store'])->name('store');
-            Route::put('/{documentLocation}', [DocumentLocationController::class, 'update'])->name('update');
-            Route::delete('/{documentLocation}', [DocumentLocationController::class, 'destroy'])->name('destroy');
-        });
-
         Route::resource('document-types', DocumentTypeController::class)->except(['show', 'create', 'edit']);
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword'])
             ->name('users.reset-password');
@@ -83,126 +54,90 @@ Route::middleware('auth')->group(function () {
         Route::resource('users', UserController::class)->except(['show']);
     });
 
-    // ── 201 Files / Employee Profile Hub ──
-    // NOTE: meili-search must be defined BEFORE {employee} wildcard route
-    Route::get('/employees/meili-search', [EmployeeSearchController::class, 'meiliSearch'])
-        ->name('employees.meiliSearch');
-
-    Route::get('/employees/{id}/update-history', [EmployeeController::class, 'updateHistory'])
-        ->name('employees.update-history');
-
-    Route::get('/employees/{id}/details', [EmployeeController::class, 'details'])
-        ->name('employees.details');
-
-    // ── Archive (admin only) ──
-    Route::middleware('role:admin')->group(function () {
-        Route::get('/archives', [ArchiveController::class, 'index'])
-            ->name('archives.index');
-        Route::patch('/employees/{id}/restore', [EmployeeController::class, 'restore'])
-            ->name('employees.restore');
-    });
-
     // ── Admin Only ──
     Route::middleware('role:admin')->group(function () {
-        Route::delete('/employees/{id}/force-delete', [EmployeeController::class, 'forceDestroy'])
-            ->name('employees.forceDestroy');
-
         // Audit & Activity Logs
         Route::get('/reports/audit-log', [ActivityLogController::class, 'index'])
             ->name('reports.audit-log');
+    });
 
-        // Reports & Exporting
+    // ── Internship Reports (Admin & PESO Manager) ──
+    Route::middleware('role:admin,peso_manager')->group(function () {
         Route::prefix('reports')->name('reports.')->group(function () {
-            Route::get('/generate', [ReportController::class, 'index'])->name('generate');
-            Route::get('/export/employees', [ReportController::class, 'exportEmployees'])->name('export-employees');
-            Route::get('/export/audit-logs', [ReportController::class, 'exportAuditLogs'])->name('export-audit-logs');
-            Route::get('/export/company-summary', [ReportController::class, 'exportCompanySummary'])->name('export-company-summary');
-            Route::get('/export/storage-utilization', [ReportController::class, 'exportStorageUtilization'])->name('export-storage-utilization');
-            Route::get('/export/available-folders', [ReportController::class, 'exportAvailableFolders'])->name('export-available-folders');
-
-            Route::get('/export/expiry-report', [ReportController::class, 'exportExpiryReport'])->name('export-expiry-report');
+            Route::get('/intern', [ReportController::class, 'internIndex'])->name('intern');
+            Route::get('/export/interns', [ReportController::class, 'exportInterns'])->name('export-interns');
+            Route::get('/export/intern-hours', [ReportController::class, 'exportInternHours'])->name('export-intern-hours');
+            Route::get('/export/intern-agencies', [ReportController::class, 'exportInternAgencySummary'])->name('export-intern-agencies');
+            Route::get('/export/intern-expiry', [ReportController::class, 'exportInternExpiry'])->name('export-intern-expiry');
         });
     });
 
-    Route::get('/201files', [EmployeeController::class, 'create'])->name('201files');
-    Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
-    Route::post('/employees/import-excel', [EmployeeController::class, 'importExcel'])
-        ->name('employees.import-excel')
-        ->middleware('role:admin,encoder');
-    Route::get('/employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show');
-    Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update');
-
-    Route::prefix('department-documents')->name('department-documents.')->group(function () {
-        Route::get('/', [DepartmentDocumentController::class, 'index'])
-            ->middleware('can:viewAny,App\Models\Document')
+    Route::prefix('interns')->name('interns.')->group(function () {
+        Route::get('/', [InternController::class, 'index'])
+            ->middleware('can:viewAny,App\Models\Intern')
             ->name('index');
 
-        Route::get('/search', [DepartmentDocumentController::class, 'search'])
-            ->middleware('can:viewAny,App\Models\Document')
-            ->name('search');
+        Route::get('/create', [InternController::class, 'create'])
+            ->middleware('role:admin')
+            ->name('create');
 
-        Route::post('/folders', [DepartmentDocumentController::class, 'storeFolder'])
-            ->middleware(['role:admin,encoder', 'can:create,App\Models\Document'])
-            ->name('folders.store');
-
-        Route::patch('/folders/{folder}', [DepartmentDocumentController::class, 'updateFolder'])
-            ->middleware(['role:admin', 'can:create,App\Models\Document'])
-            ->name('folders.update');
-
-        Route::delete('/folders/{folder}', [DepartmentDocumentController::class, 'destroyFolder'])
-            ->middleware(['role:admin', 'can:create,App\Models\Document'])
-            ->name('folders.destroy');
-
-        Route::get('/root-update-history', [DepartmentDocumentController::class, 'rootUpdateHistory'])
-            ->middleware(['role:admin'])
-            ->name('root-update-history');
-
-        Route::get('/folders/{folder}/update-history', [DepartmentDocumentController::class, 'folderUpdateHistory'])
-            ->middleware(['role:admin,encoder', 'can:create,App\Models\Document'])
-            ->name('folders.update-history');
-
-        Route::post('/', [DepartmentDocumentController::class, 'store'])
-            ->middleware(['role:admin,encoder', 'can:create,App\Models\Document'])
+        Route::post('/', [InternController::class, 'store'])
+            ->middleware('role:admin')
             ->name('store');
 
-        Route::patch('/{document}/archive', [DepartmentDocumentController::class, 'archive'])
-            ->middleware(['role:admin,encoder', 'can:archive,document'])
-            ->name('archive');
+        Route::get('/{intern}', [InternController::class, 'show'])
+            ->middleware('can:view,intern')
+            ->name('show');
 
-        Route::patch('/{id}/restore', [DepartmentDocumentController::class, 'restore'])
+        Route::get('/{intern}/edit', [InternController::class, 'edit'])
+            ->middleware('role:admin')
+            ->name('edit');
+
+        Route::put('/{intern}', [InternController::class, 'update'])
+            ->middleware('role:admin')
+            ->name('update');
+
+        Route::delete('/{intern}', [InternController::class, 'destroy'])
+            ->middleware('role:admin')
+            ->name('destroy');
+
+        Route::patch('/{id}/restore', [InternController::class, 'restore'])
             ->middleware('role:admin')
             ->name('restore');
 
-        Route::delete('/{id}/force-delete', [DepartmentDocumentController::class, 'forceDelete'])
+        Route::delete('/{id}/force-delete', [InternController::class, 'forceDelete'])
             ->middleware('role:admin')
             ->name('forceDelete');
+    });
 
-        Route::get('/{document}/preview', [DepartmentDocumentController::class, 'preview'])
+    // ── Intern Documents (shared by admins/PESO for review and interns for upload) ──
+    Route::prefix('intern-documents')->name('intern-documents.')->group(function () {
+        Route::get('/', [InternDocumentController::class, 'index'])
+            ->middleware('can:viewAny,App\Models\InternDocument')
+            ->name('index');
+
+        Route::post('/', [InternDocumentController::class, 'store'])
+            ->name('store');
+
+        Route::get('/{document}/preview', [InternDocumentController::class, 'preview'])
             ->middleware('can:download,document')
             ->name('preview')
             ->withTrashed();
 
-        Route::get('/{document}/download', [DepartmentDocumentController::class, 'download'])
+        Route::get('/{document}/download', [InternDocumentController::class, 'download'])
             ->middleware('can:download,document')
             ->name('download')
             ->withTrashed();
 
-        Route::patch('/{document}', [DepartmentDocumentController::class, 'update'])
-            ->middleware('role:admin,encoder')
-            ->name('update');
-
-        Route::get('/{document}/update-history', [DepartmentDocumentController::class, 'updateHistory'])
-            ->middleware('can:download,document')
-            ->name('update-history')
-            ->withTrashed();
+        Route::patch('/{document}/review', [InternDocumentController::class, 'review'])
+            ->middleware('role:admin,peso_manager')
+            ->name('review');
     });
-    Route::get('/about', function () {
-        $totalEmployees = \App\Models\Employee::count();
-        $totalDocuments = \App\Models\Document::count();
-        $totalCompanies = \App\Models\Company::where('is_active', true)->count();
 
-        return view('about', compact('totalEmployees', 'totalDocuments', 'totalCompanies'));
-    })->name('about');
+    // ── Intern Self-Service ──
+    Route::prefix('my-internship')->name('my-internship.')->middleware('role:intern')->group(function () {
+        Route::get('/', [MyInternshipController::class, 'index'])->name('index');
+    });
 });
 
 require __DIR__.'/auth.php';

@@ -21,7 +21,6 @@ class DocumentTypeRequest extends FormRequest
         }
 
         return [
-            'department_id' => ['nullable', 'exists:departments,id'],
             'name' => [
                 'required',
                 'string',
@@ -49,7 +48,6 @@ class DocumentTypeRequest extends FormRequest
             'code.unique' => 'This code is already taken by another document type.',
             'code.max' => 'Code must not exceed 20 characters.',
             'code.alpha_dash' => 'Code may only contain letters, numbers, dashes, and underscores.',
-            'department_id.exists' => 'The selected department does not exist.',
         ];
     }
 

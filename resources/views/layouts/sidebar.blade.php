@@ -12,7 +12,7 @@
         <div class="sidebar-user-details">
             <div class="sidebar-user-name">{{ Auth::user()->name }}</div>
             <div class="sidebar-user-role">
-                <span class="badge bg-{{ Auth::user()->role === 'admin' ? 'danger' : (Auth::user()->role === 'encoder' ? 'warning' : 'info') }}">
+                <span class="badge bg-{{ Auth::user()->role === 'admin' ? 'danger' : (Auth::user()->role === 'peso_manager' ? 'warning' : 'info') }}">
                     {{ ucfirst(Auth::user()->role) }}
                 </span>
             </div>
@@ -33,43 +33,32 @@
                 </a>
             </li>
 
-            {{-- 201 Files (all roles) --}}
+            {{-- ═══ INTERNSHIP PROGRAM ═══ --}}
+            @if(Auth::user()->isIntern())
+            <li class="sidebar-section-label">INTERNSHIP</li>
             <li class="nav-item">
-                <a class="nav-link {{ request()->is('201files*') ? 'active' : '' }}" href="{{ url('/201files') }}">
-                    <i class="fas fa-folder-open"></i> 201 Files
+                <a class="nav-link {{ request()->routeIs('my-internship.*') ? 'active' : '' }}" href="{{ route('my-internship.index') }}">
+                    <i class="fas fa-user-graduate"></i> My Internship
                 </a>
             </li>
-
-            {{-- ═══ DOCUMENT MANAGEMENT ═══ --}}
-            <li class="sidebar-section-label">DOCUMENT MANAGEMENT</li>
-
-            {{-- Department Dropdown --}}
-            <li class="nav-item" x-data="{ open: {{ request()->is('department-documents*') ? 'true' : 'false' }} }">
-                <a class="nav-link {{ request()->is('department-documents*') ? 'active' : '' }}"
-                   href="javascript:void(0)"
-                   @click="open = !open"
-                   style="display: flex; justify-content: space-between; align-items: center;">
-                    <span>
-                        <i class="fas fa-building"></i> Departments
-                    </span>
-                    <i class="fas" :class="open ? 'fa-chevron-down' : 'fa-chevron-right'" style="font-size: 0.7rem;"></i>
+            @elseif(Auth::user()->hasRole('admin', 'peso_manager'))
+            <li class="sidebar-section-label">INTERNSHIP PROGRAM</li>
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('interns.*') ? 'active' : '' }}" href="{{ route('interns.index') }}">
+                    <i class="fas fa-user-graduate"></i> Interns
                 </a>
-                <ul class="nav flex-column ms-3" x-show="open" x-transition x-cloak>
-                    @php
-                        $sidebarUser = Auth::user();
-                        $sidebarDepartments = $sidebarUser->isAdmin()
-                            ? \App\Models\Department::query()->where('is_active', true)->orderBy('name')->get()
-                            : $sidebarUser->authorizedDepartments()->where('is_active', true)->orderBy('departments.name')->get();
-                    @endphp
-                    @foreach($sidebarDepartments as $sidebarDept)
-                    <li class="nav-item">
-                        <a class="nav-link {{ request('department_id') == $sidebarDept->id ? 'active' : '' }}" href="{{ route('department-documents.index', ['department_id' => $sidebarDept->id]) }}">
-                            <i class="fas fa-folder"></i> {{ $sidebarDept->name }}
-                        </a>
-                    </li>
-                    @endforeach
-                </ul>
             </li>
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('intern-documents.*') ? 'active' : '' }}" href="{{ route('intern-documents.index') }}">
+                    <i class="fas fa-file-signature"></i> Intern Documents
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('reports.intern') ? 'active' : '' }}" href="{{ route('reports.intern') }}">
+                    <i class="fas fa-chart-bar"></i> Intern Reports
+                </a>
+            </li>
+            @endif
 
             @if(Auth::user()->isAdmin())
             {{-- ═══ ADMINISTRATION ═══ --}}
@@ -100,32 +89,16 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('settings.folder-locations.*') ? 'active' : '' }}" href="{{ route('settings.folder-locations.index') }}">
-                            <i class="fas fa-folder-tree me-2"></i>
-                            <span>Folder Locations</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->is('settings/departments*') ? 'active' : '' }}" href="{{ route('settings.departments.index') }}">
-                            <i class="fas fa-sitemap"></i> Departments
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->is('settings/bank-types*') ? 'active' : '' }}" href="{{ route('settings.bank-types.index') }}">
-                            <i class="fas fa-university"></i> Bank Types
-                        </a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link {{ request()->is('settings/companies*') ? 'active' : '' }}" href="{{ route('settings.companies.index') }}">
-                            <i class="fas fa-briefcase"></i> Companies
+                            <i class="fas fa-handshake"></i> Partner Agencies
                         </a>
                     </li>
                 </ul>
             </li>
 
             {{-- Reports Dropdown --}}
-            <li class="nav-item" x-data="{ open: {{ request()->is('reports*') ? 'true' : 'false' }} }">
-                <a class="nav-link {{ request()->is('reports*') ? 'active' : '' }}"
+            <li class="nav-item" x-data="{ open: {{ request()->is('reports/audit-log') ? 'true' : 'false' }} }">
+                <a class="nav-link {{ request()->is('reports/audit-log') ? 'active' : '' }}"
                    href="javascript:void(0)"
                    @click="open = !open"
                    style="display: flex; justify-content: space-between; align-items: center;">
@@ -136,35 +109,14 @@
                 </a>
                 <ul class="nav flex-column ms-3" x-show="open" x-transition x-cloak>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url('/reports/generate') }}">
-                            <i class="fas fa-file-export"></i> Generate Reports
-                        </a>
-                    </li>
-                    <li class="nav-item">
                         <a class="nav-link" href="{{ url('/reports/audit-log') }}">
                             <i class="fas fa-history"></i> Activity Logs
                         </a>
                     </li>
                 </ul>
             </li>
-
-            {{-- Archive (admin only) --}}
-            <li class="nav-item mt-2">
-                <a class="nav-link {{ request()->routeIs('archives.index') ? 'active' : '' }}" href="{{ route('archives.index', ['tab' => 'employees']) }}">
-                    <i class="fas fa-box-archive"></i> Archives
-                </a>
-            </li>
             @endif
 
         </ul>
-    </div>
-
-    {{-- ── Sidebar Footer (Pinned to bottom) ── --}}
-    <div class="sidebar-footer mt-auto p-2" style="border-top: 1px solid rgba(255, 255, 255, 0.05); background: rgba(0,0,0,0.1);">
-        <li class="nav-item" style="list-style: none;">
-            <a class="nav-link {{ request()->routeIs('about') ? 'active' : '' }}" href="{{ route('about') }}" style="font-size: 0.8rem; opacity: 0.8; border-radius: 6px; padding: 8px 12px; display: block; color: #c8cfd8; text-decoration: none; transition: all 0.2s;">
-                <i class="fas fa-info-circle me-2"></i> About Project
-            </a>
-        </li>
     </div>
 </div>

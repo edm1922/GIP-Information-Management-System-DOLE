@@ -47,8 +47,6 @@ test('profile information requires username', function () {
 
     $response->assertSessionHasErrors('username');
 });
-    $user = User::factory()->create();
-
 
 
 test('user can delete their account', function () {

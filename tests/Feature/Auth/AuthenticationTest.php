@@ -12,7 +12,19 @@ test('users can authenticate using the login screen', function () {
     $user = User::factory()->create();
 
     $response = $this->post('/login', [
-        'email' => $user->email,
+        'username' => $user->username,
+        'password' => 'password',
+    ]);
+
+    $this->assertAuthenticated();
+    $response->assertRedirect(route('dashboard', absolute: false));
+});
+
+test('intern users are redirected to dashboard upon login', function () {
+    $intern = User::factory()->intern()->create();
+
+    $response = $this->post('/login', [
+        'username' => $intern->username,
         'password' => 'password',
     ]);
 
@@ -24,7 +36,7 @@ test('users can not authenticate with invalid password', function () {
     $user = User::factory()->create();
 
     $this->post('/login', [
-        'email' => $user->email,
+        'username' => $user->username,
         'password' => 'wrong-password',
     ]);
 

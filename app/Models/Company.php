@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Company extends Model
 {
@@ -12,35 +11,26 @@ class Company extends Model
         'name',
         'code',
         'is_active',
+        'is_partner_agency',
+    ];
+
+    protected $attributes = [
+        'is_partner_agency' => true,
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'is_partner_agency' => 'boolean',
         ];
     }
 
     /**
-     * Get employees assigned to this company.
+     * Get interns assigned to this company as their partner agency.
      */
-    public function employees(): HasMany
+    public function interns(): HasMany
     {
-        return $this->hasMany(Employee::class);
-    }
-
-    public function folderLocations(): HasMany
-    {
-        return $this->hasMany(FolderLocation::class);
-    }
-
-    public function folders(): HasMany
-    {
-        return $this->hasMany(Folder::class);
-    }
-
-    public function folderSequence(): HasOne
-    {
-        return $this->hasOne(CompanyFolderSequence::class);
+        return $this->hasMany(Intern::class, 'partner_agency_id');
     }
 }

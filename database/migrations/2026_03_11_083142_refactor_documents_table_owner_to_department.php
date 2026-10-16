@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::table('documents', function (Blueprint $table) {
             // Drop the old polymorphic index
             $table->dropIndex('docs_owner_type_idx');
+            $table->dropIndex('documents_owner_type_owner_id_index');
             
             // Drop the old morph columns
             $table->dropColumn(['owner_type', 'owner_id']);

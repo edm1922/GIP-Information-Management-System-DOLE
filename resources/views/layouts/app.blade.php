@@ -4,7 +4,6 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="meili-search-url" content="{{ route('employees.meiliSearch') }}">
     <meta name="app-base-url" content="{{ rtrim(url('/'), '/') }}">
     <meta name="app-folder-prefix" content="{{ config('brand.folder_prefix') }}">
     <title>{{ config('brand.name', 'DMS') }}</title>
@@ -116,6 +115,10 @@
     <main class="main-content {{ request()->routeIs('about') ? 'full-display' : '' }}">
         {{ $slot }}
     </main>
+
+    {{-- Global In-System Document Preview Overlay --}}
+    @include('partials.document-preview-overlay')
+
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 

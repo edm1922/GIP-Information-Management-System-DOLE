@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\DocumentTypeRequest;
-use App\Models\Department;
 use App\Models\DocumentType;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
@@ -15,7 +14,7 @@ class DocumentTypeController extends Controller
      */
     public function index(Request $request)
     {
-        $query = DocumentType::with('department')->withCount('documents');
+        $query = DocumentType::withCount('internDocuments');
 
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
@@ -24,14 +23,9 @@ class DocumentTypeController extends Controller
             });
         }
 
-        if ($departmentId = $request->input('department_id')) {
-            $query->where('department_id', $departmentId);
-        }
-
         $documentTypes = $query->orderBy('name')->paginate(15)->withQueryString();
-        $departments = Department::orderBy('name')->get();
 
-        return view('document-types.index', compact('documentTypes', 'departments'));
+        return view('document-types.index', compact('documentTypes'));
     }
 
     /**
@@ -46,7 +40,6 @@ class DocumentTypeController extends Controller
             'after' => [
                 'name' => $documentType->name,
                 'code' => $documentType->code,
-                'department_id' => $documentType->department_id,
             ],
         ]);
 
@@ -60,11 +53,11 @@ class DocumentTypeController extends Controller
      */
     public function update(DocumentTypeRequest $request, DocumentType $documentType)
     {
-        $before = $documentType->only(['name', 'code', 'department_id']);
+        $before = $documentType->only(['name', 'code']);
 
         $documentType->update($request->validated());
 
-        $after = $documentType->fresh()->only(['name', 'code', 'department_id']);
+        $after = $documentType->fresh()->only(['name', 'code']);
 
         AuditService::log('updated', 'Updated document type.', $documentType, [
             'before' => $before,
@@ -82,7 +75,7 @@ class DocumentTypeController extends Controller
     public function destroy(DocumentType $documentType)
     {
         // Prevent deletion if the document type is already in use
-        $documentsCount = $documentType->documents()->count();
+        $documentsCount = $documentType->internDocuments()->count();
 
         if ($documentsCount > 0) {
             return back()->with('error', 'This document type cannot be deleted because it is currently used by one or more uploaded documents.');
@@ -91,7 +84,6 @@ class DocumentTypeController extends Controller
         $snapshot = [
             'name' => $documentType->name,
             'code' => $documentType->code,
-            'department_id' => $documentType->department_id,
             'documents_count_at_delete' => $documentsCount,
         ];
 

@@ -29,7 +29,7 @@
         <div class="card-body py-3">
             <form method="GET" action="{{ route('settings.document-types.index') }}" class="row g-3 align-items-end">
                 {{-- Search --}}
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <label for="search" class="form-label" style="font-size: 0.78rem; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Search</label>
                     <div class="search-wrapper">
                         <i class="fas fa-search search-icon"></i>
@@ -41,21 +41,6 @@
                                value="{{ request('search') }}">
                     </div>
                 </div>
-
-                {{-- Department Filter --}}
-                <div class="col-md-3">
-                    <label for="department_id" class="form-label" style="font-size: 0.78rem; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">Department</label>
-                    <select id="department_id" name="department_id" class="form-select field-input" style="font-size: 0.85rem;">
-                        <option value="">All Departments</option>
-                        @foreach($departments as $dept)
-                            <option value="{{ $dept->id }}" {{ request('department_id') == $dept->id ? 'selected' : '' }}>
-                                {{ $dept->name }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-
 
                 {{-- Buttons --}}
                 <div class="col-md-3 col-lg-2 d-flex gap-2">
@@ -76,10 +61,8 @@
             <table class="doc-table">
                 <thead>
                     <tr>
-                        <th style="width: 200px;">Name</th>
-                        <th style="width: 100px; text-align: center;">Code</th>
-
-                        <th style="width: 150px;">Department</th>
+                        <th style="width: 250px;">Name</th>
+                        <th style="width: 120px; text-align: center;">Code</th>
                         <th style="width: 90px; text-align: center;">Expiry?</th>
                         <th style="width: 100px; text-align: center;">Documents</th>
                         <th style="width: 80px; text-align: center;">Actions</th>
@@ -93,10 +76,6 @@
                                 <code style="background: #f1f5f9; color: #475569; padding: 3px 8px; border-radius: 4px; font-size: 0.78rem; font-weight: 600;">
                                     {{ $docType->code }}
                                 </code>
-                            </td>
-
-                            <td class="text-muted" style="font-size: 0.8rem;">
-                                {{ $docType->department?->name ?? '—' }}
                             </td>
                             <td class="text-center">
                                 @if($docType->has_expiry)
@@ -119,7 +98,6 @@
                                             'id' => $docType->id,
                                             'name' => $docType->name,
                                             'code' => $docType->code,
-                                            'department_id' => $docType->department_id,
                                             'has_expiry' => (bool)$docType->has_expiry,
                                             'max_pages' => $docType->max_pages
                                        ]) }})">
@@ -156,7 +134,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="text-center text-muted py-5">
+                            <td colspan="5" class="text-center text-muted py-5">
                                 <i class="fas fa-file-alt mb-2" style="font-size: 2rem; opacity: 0.3;"></i>
                                 <p class="mb-0 mt-2">No document types found.</p>
                             </td>
@@ -192,7 +170,6 @@
                     id: '',
                     name: '',
                     code: '',
-                    department_id: '',
                     has_expiry: false
                 },
 
@@ -213,7 +190,6 @@
                             id: '{{ old("id") }}',
                             name: '{!! addslashes(old("name")) !!}',
                             code: '{!! addslashes(old("code")) !!}',
-                            department_id: '{{ old("department_id") }}',
                             has_expiry: {{ old('has_expiry') ? 'true' : 'false' }}
                         };
                         setTimeout(() => {

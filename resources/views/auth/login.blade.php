@@ -25,6 +25,22 @@
             --company-primary-border: {{ config('brand.primary_color') }}33;
             --brand-red: {{ config('brand.primary_color') }};
         }
+
+        body.login-page-wrapper {
+            
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-container {
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+        }
     </style>
 </head>
 <body class="login-page-wrapper">
@@ -32,10 +48,10 @@
     <div class="login-container">
         <!-- Left Side: Overlay (Welcome) -->
         <div class="overlay-panel">
-            <img src="{{ asset(config('brand.logo')) }}" alt="{{ config('brand.short_name') }} Logo" style="height: 150px; margin-bottom: 2px;">
+            <img src="{{ asset(config('brand.logo_full')) }}" alt="{{ config('brand.short_name') }} Logo" style="height: 150px; margin-bottom: 2px;">
 
-            <h2>Welcome back</h2>
-            <p>Enter your credentials to access the Document Management System.</p>
+            <h2>Welcome</h2>
+            <p>Welcome to the GIP information Management System (GIMS)</p>
         </div>
 
         <!-- Right Side: Sign In Form -->
@@ -45,7 +61,7 @@
             <form method="POST" action="{{ route('login') }}" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
                 @csrf
                 
-                <h1>Sign in</h1>
+                <h1>GIMS</h1>
                 
                 <span>Please enter your credentials.</span>
 

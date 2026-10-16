@@ -31,10 +31,10 @@ class CompanyRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.required' => 'Company name is required.',
-            'code.required' => 'Company code is required.',
-            'code.unique'   => 'This company code is already in use.',
-            'code.max'      => 'Company code must not exceed 20 characters.',
+            'name.required' => 'Agency name is required.',
+            'code.required' => 'Agency code is required.',
+            'code.unique'   => 'This agency code is already in use.',
+            'code.max'      => 'Agency code must not exceed 20 characters.',
         ];
     }
 }

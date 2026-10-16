@@ -3,10 +3,10 @@
         <div><h2 class="h4 mb-0 fw-bold">Dashboard</h2>
         <small>Welcome to the {{ config('brand.name') }}</small></div>
         <div class="d-flex align-items-center gap-3">
-            <div class="calendar-wrapper" x-data="{ open: false }">
+            <div class="calendar-wrapper ms-auto" x-data="{ open: false }">
                 <div class="date-pill" @click="open = !open">
                     <i class="fas fa-calendar-alt me-2" style="color: {{ config('brand.primary_color') }} !important;"></i>
-                    <span>{{ date('M d, Y', strtotime($calendarDate)) }}</span> 
+                    <span>{{ date('M d, Y', strtotime($calendarDate)) }}</span>
                 </div>
 
                 <div class="calendar-dropdown" x-show="open" @click.away="open = false" x-transition x-cloak>
@@ -43,203 +43,439 @@
     <!-- Initialize external JS variables -->
     <script>
         window.dashboardData = {
-            hiringTrends: @json($hiringTrends),
-            companyDistribution: @json($companyDistribution),
-            bankDistribution: @json($bankDistribution),
-            month: "{{ $month }}",
-            daysInMonth: {{ $daysInMonth ?? 0 }}
+            internsTrend: @json($internsTrend),
+            internStatusDistribution: @json($internStatusDistribution),
+            partnerAgencyDistribution: @json($partnerAgencyDistribution)
         };
     </script>
 
-    <!-- Consolidated Dashboard Layout (Column-based) -->
-    <div class="row justify-content-center g-4">
-        <!-- Main Left Column -->
-        <div class="col-lg-8">
-            <div class="d-flex flex-column gap-4">
-                <!-- 2x2 Stat Cards -->
-                <div class="stat-cards-frame">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <div class="stat-card h-100">
-                                <div class="stat-header">
-                                    <div>
-                                        <span class="stat-title d-block mb-1">Total Employees</span>
-                                        <span class="stat-value-large" id="mainTotalEmployees">{{ number_format($totalEmployees) }}</span>
-                                    </div>
-                                    <div class="stat-icon-circle">
-                                        <i class="fas fa-users"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="stat-card h-100">
-                                <div class="stat-header">
-                                    <div>
-                                        <span class="stat-title d-block mb-1">Total Companies</span>
-                                        <span class="stat-value-large">{{ $totalCompanies }}</span>
-                                    </div>
-                                    <div class="stat-icon-circle">
-                                        <i class="fas fa-building"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="stat-card h-100">
-                                <div class="stat-header">
-                                    <div>
-                                        <span class="stat-title d-block mb-1">Total Documents</span>
-                                        <span class="stat-value-large">{{ number_format($totalDocuments) }}</span>
-                                    </div>
-                                    <div class="stat-icon-circle">
-                                        <i class="fas fa-file-alt"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="stat-card h-100">
-                                <div class="stat-header">
-                                    <div>
-                                        <span class="stat-title d-block mb-1">Total Users</span>
-                                        <span class="stat-value-large">{{ number_format($totalUsers) }}</span>
-                                    </div>
-                                    <div class="stat-icon-circle">
-                                        <i class="fas fa-user-shield"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+    @if($showInternStats)
+    <div class="row g-4">
+        {{-- Internship Program Stats --}}
+        <div class="col-12">
+            <div class="stat-cards-frame">
+                <div class="d-flex align-items-center mb-3">
+                    <h3 class="dashboard-section-title mb-0">
+                        <i class="fas fa-user-graduate" style="color: {{ config('brand.primary_color') }};"></i> Internship Program
+                    </h3>
+                    <a href="{{ route('interns.index') }}" class="btn btn-sm btn-outline-secondary ms-auto">Manage Interns</a>
                 </div>
-
-                <!-- Hiring Trends Graph -->
-                <div class="graph-container">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h3 class="dashboard-section-title mb-0">
-                            <i class="fas fa-chart-line" style="color: {{ config('brand.primary_color') }};"></i> Hiring Trends
-                        </h3>
-                        <form action="{{ route('dashboard') }}" method="GET" class="filter-wrapper mb-0" id="yearFilterForm" x-data="{ open: false }">
-                            <input type="hidden" name="year" id="selectedYear" value="{{ $year }}">
-                            <div class="custom-dropdown" @click.away="open = false">
-                                <button type="button" class="dropdown-trigger" @click="open = !open">
-                                    <span>{{ $year }}</span>
-                                    <i class="fas fa-chevron-down ms-2" :class="open ? 'rotate-180' : ''"></i>
-                                </button>
-                                <div class="dropdown-menu-custom" x-show="open" x-transition x-cloak>
-                                    @php
-                                        $yearsRange = $availableYears ?? [date('Y')];
-                                    @endphp
-                                    @foreach($yearsRange as $y)
-                                        <div class="dropdown-item-custom {{ (int)$year == (int)$y ? 'active' : '' }}" 
-                                             @click="document.getElementById('selectedYear').value = '{{ $y }}'; document.getElementById('yearFilterForm').submit()">
-                                            {{ $y }}
-                                        </div>
-                                    @endforeach
+                <div class="row g-3">
+                    <div class="col-6 col-lg-4 col-xl">
+                        <div class="stat-card h-100">
+                            <div class="stat-header">
+                                <div>
+                                    <span class="stat-title d-block mb-1">Total Interns</span>
+                                    <span class="stat-value-large">{{ number_format($totalInterns) }}</span>
                                 </div>
-                            </div>
-                            <input type="hidden" name="month" value="{{ $month }}">
-                        </form>
-                    </div>
-                    
-                    <!-- Reactive Hiring Summary Bar -->
-                    <div class="hiring-summary-bar mb-4">
-                        <div class="row align-items-center">
-                            <div class="col-md-6 border-end-md">
-                                <div class="d-flex align-items-center p-3">
-                                    <div class="stat-indicator-circle-wrapper">
-                                        <div class="stat-indicator-circle monthly" style="--percent: {{ min(100, max(10, $monthlyHiresCount * 5)) }}%"></div>
-                                    </div>
-                                    <div class="ms-3">
-                                        <span class="summary-label d-block text-muted">{{ $calendarMonthName }} Stats</span>
-                                        <div class="d-flex align-items-baseline gap-2">
-                                            <h2 class="summary-value mb-0">{{ number_format($monthlyHiresCount) }}</h2>
-                                        </div>
-                                        <div class="summary-trend-box mt-1">
-                                            <span class="summary-trend {{ $monthlyGrowth >= 0 ? 'trend-up' : 'trend-down' }}">
-                                                {{ $monthlyGrowth >= 0 ? '+' : '' }}{{ number_format($monthlyGrowth, 1) }}%
-                                            </span>
-                                            <span class="summary-subtext ms-1">vs prev month</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="d-flex align-items-center p-3 border-top-mobile">
-                                    <div class="stat-indicator-circle-wrapper">
-                                        <div class="stat-indicator-circle yearly" style="--percent: {{ min(100, max(10, ($yearlyHiresCount / max(1, $totalEmployees)) * 100)) }}%"></div>
-                                    </div>
-                                    <div class="ms-3">
-                                        <span class="summary-label d-block text-muted">{{ $year }} Yearly</span>
-                                        <div class="d-flex align-items-baseline gap-2">
-                                            <h2 class="summary-value mb-0">{{ number_format($yearlyHiresCount) }}</h2>
-                                        </div>
-                                        <div class="summary-trend-box mt-1">
-                                            <span class="summary-trend {{ $yearlyGrowth >= 0 ? 'trend-up' : 'trend-down' }}">
-                                                {{ $yearlyGrowth >= 0 ? '+' : '' }}{{ number_format($yearlyGrowth, 1) }}%
-                                            </span>
-                                            <span class="summary-subtext ms-1">vs prev year</span>
-                                        </div>
-                                    </div>
-                                </div>
+                                <div class="stat-icon-circle"><i class="fas fa-users"></i></div>
                             </div>
                         </div>
                     </div>
-
-                    <div style="height: 300px;" class="mt-2">
-                        <canvas id="hiringChart"></canvas>
+                    <div class="col-6 col-lg-4 col-xl">
+                        <div class="stat-card h-100">
+                            <div class="stat-header">
+                                <div>
+                                    <span class="stat-title d-block mb-1">Active</span>
+                                    <span class="stat-value-large">{{ number_format($activeInterns) }}</span>
+                                </div>
+                                <div class="stat-icon-circle" style="background: rgba(16, 185, 129, 0.12); color: #059669;"><i class="fas fa-user-check"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-4 col-xl">
+                        <div class="stat-card h-100">
+                            <div class="stat-header">
+                                <div>
+                                    <span class="stat-title d-block mb-1">Inactive</span>
+                                    <span class="stat-value-large">{{ number_format($inactiveInterns) }}</span>
+                                </div>
+                                <div class="stat-icon-circle" style="background: rgba(156, 163, 175, 0.18); color: #6b7280;"><i class="fas fa-user-clock"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-4 col-xl">
+                        <div class="stat-card h-100">
+                            <div class="stat-header">
+                                <div>
+                                    <span class="stat-title d-block mb-1">Completed</span>
+                                    <span class="stat-value-large">{{ number_format($completedInterns) }}</span>
+                                </div>
+                                <div class="stat-icon-circle" style="background: rgba(37, 99, 235, 0.12); color: #2563eb;"><i class="fas fa-graduation-cap"></i></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-4 col-xl">
+                        <div class="stat-card h-100">
+                            <div class="stat-header">
+                                <div>
+                                    <span class="stat-title d-block mb-1">Expiring Soon</span>
+                                    <span class="stat-value-large">{{ number_format($expiringSoonCount) }}</span>
+                                </div>
+                                <div class="stat-icon-circle" style="background: rgba(245, 158, 11, 0.15); color: #d97706;"><i class="fas fa-hourglass-half"></i></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Main Right Column -->
+        {{-- Interns Onboarded Trend --}}
+        <div class="col-lg-8">
+            <div class="graph-container">
+                <h3 class="dashboard-section-title mb-3">
+                    <i class="fas fa-chart-line" style="color: {{ config('brand.primary_color') }};"></i> Interns Onboarded ({{ $year }})
+                </h3>
+                <div style="height: 300px;" class="mt-2">
+                    <canvas id="internsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        {{-- Intern Status Distribution --}}
         <div class="col-lg-4">
-            <div class="d-flex flex-column gap-4">
-                <!-- Company Distribution Pie Chart -->
-                <div class="graph-container">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h3 class="dashboard-section-title mb-0">
-                            <i class="fas fa-chart-pie" style="color: {{ config('brand.primary_color') }};"></i> Company Distribution
-                        </h3>
-                        <!-- Company Filter Dropdown -->
-                        <div class="custom-dropdown" x-data="{ open: false, selected: 'All Companies', selectedColor: '{{ config('brand.primary_color') }}' }" @click.away="open = false">
-                            <button type="button" class="dropdown-trigger" @click="open = !open">
-                                <div class="d-flex align-items-center gap-2">
-                                    <span x-show="selected !== 'All Companies'" class="legend-dot" :style="'background-color: ' + selectedColor"></span>
-                                    <span x-text="selected">All Companies</span>
-                                </div>
-                                <i class="fas fa-chevron-down ms-2" :class="open ? 'rotate-180' : ''"></i>
-                            </button>
-                            <div class="dropdown-menu-custom" x-show="open" x-transition x-cloak id="companyFilterOptions">
-                                <div class="dropdown-item-custom active" @click="selected = 'All Companies'; open = false; filterCompanyChart('All')">
-                                    All Companies
-                                </div>
-                                <!-- Iterated items will be injected here or handled by JS -->
-                            </div>
-                        </div>
-                    </div>
-                    <div style="height: 250px; position: relative;" class="mt-3 chart-with-center">
-                        <canvas id="companyChart"></canvas>
-                        <div class="chart-center-text">
-                            <span class="center-value" id="totalEmployeeCount">{{ number_format($totalEmployees) }}</span>
-                            <span class="center-label">Total Enrolled</span>
-                        </div>
-                    </div>
-                    <div id="companyLegend" class="custom-chart-legend mt-4"></div>
+            <div class="graph-container">
+                <h3 class="dashboard-section-title mb-3">
+                    <i class="fas fa-chart-pie" style="color: {{ config('brand.primary_color') }};"></i> Status Distribution
+                </h3>
+                <div style="height: 300px;" class="mt-2">
+                    <canvas id="internStatusChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        {{-- Partner Agency Distribution --}}
+        <div class="col-lg-5">
+            <div class="graph-container">
+                <h3 class="dashboard-section-title mb-3">
+                    <i class="fas fa-handshake" style="color: {{ config('brand.primary_color') }};"></i> Partner Agency Distribution
+                </h3>
+                <div style="height: 300px;" class="mt-2">
+                    <canvas id="partnerAgencyChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        {{-- Expiring Contracts --}}
+        <div class="col-lg-7">
+            <div class="graph-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h3 class="dashboard-section-title mb-0">
+                        <i class="fas fa-hourglass-half" style="color: {{ config('brand.primary_color') }};"></i> Contracts Expiring (30 days)
+                    </h3>
+                    <a href="{{ route('reports.intern') }}" class="btn btn-sm btn-outline-secondary">Reports</a>
                 </div>
 
-                <!-- Bank Employee Column Chart -->
-                <div class="graph-container">
-                    <h3 class="dashboard-section-title mb-2">
-                        <i class="fas fa-university" style="color: {{ config('brand.primary_color') }};"></i> Bank Distribution
-                    </h3>
-                    <div style="height: 300px; position: relative;">
-                        <canvas id="bankChart"></canvas>
+                @if($expiringContracts->isEmpty())
+                    <p class="text-muted small mb-0">No contracts are expiring within the next 30 days.</p>
+                @else
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Intern</th>
+                                    <th>Partner Agency</th>
+                                    <th class="text-end">Ends</th>
+                                    <th class="text-end">Days Left</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($expiringContracts as $contract)
+                                    @php $daysLeft = $contract->days_remaining; @endphp
+                                    <tr>
+                                        <td class="fw-semibold">{{ $contract->name }}</td>
+                                        <td>{{ $contract->partnerAgency?->name ?? '—' }}</td>
+                                        <td class="text-end">{{ optional($contract->contract_end_date)->format('M d, Y') ?? '—' }}</td>
+                                        <td class="text-end">
+                                            <span class="badge {{ $daysLeft !== null && $daysLeft <= 7 ? 'bg-danger' : 'bg-warning text-dark' }}">
+                                                {{ $daysLeft !== null ? $daysLeft . 'd' : '—' }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
-                </div>
+                @endif
             </div>
         </div>
     </div>
+    @elseif($isInternUser)
+    {{-- === Intern Self-Service Dashboard === --}}
+    @if(!$internSelf)
+        <div class="card shadow-sm border-0 mt-2">
+            <div class="card-body p-5 text-center">
+                <div class="mb-3">
+                    <i class="fas fa-user-clock fa-3x text-warning"></i>
+                </div>
+                <h4 class="fw-bold text-dark">No Internship Record Assigned Yet</h4>
+                <p class="text-muted mb-3" style="max-width: 540px; margin: 0 auto;">
+                    Your account is registered as an intern, but your internship details have not been linked by the administrator or PESO manager.
+                </p>
+                <div class="alert alert-info d-inline-block text-start small mb-0">
+                    <i class="fas fa-info-circle me-1"></i> Please contact your administrator or PESO coordinator to set up your partner agency, required hours, and contract dates.
+                </div>
+            </div>
+        </div>
+    @else
+        <div class="row g-4">
+            {{-- Welcome Banner --}}
+            <div class="col-12">
+                <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #1E429B 0%, #2563eb 100%); color: #fff; border-radius: 12px;">
+                    <div class="card-body p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+                        <div>
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <span class="badge bg-white text-primary fw-bold px-2 py-1">Intern Portal</span>
+                                <span class="badge bg-{{ $internSelf->status === 'active' ? 'success' : ($internSelf->status === 'completed' ? 'info' : 'secondary') }}">
+                                    <i class="fas fa-circle me-1" style="font-size: 0.5rem; vertical-align: middle;"></i> {{ ucfirst($internSelf->status) }}
+                                </span>
+                                @if($internSelf->isExpiringSoon())
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-exclamation-triangle me-1"></i> Ends in {{ $internSelf->days_remaining }}d
+                                    </span>
+                                @endif
+                            </div>
+                            <h2 class="h4 fw-bold mb-1 text-white">Welcome back, {{ $internSelf->name ?? Auth::user()->name }}!</h2>
+                            <p class="mb-0 text-white-50 small">
+                                <i class="fas fa-building me-1"></i> {{ $internSelf->partnerAgency?->name ?? 'Partner Agency: Not Assigned' }}
+                                @if($internSelf->supervisor)
+                                    &bull; <i class="fas fa-user-tie ms-2 me-1"></i> Supervisor: {{ $internSelf->supervisor }}
+                                @endif
+                            </p>
+                        </div>
+                        <div>
+                            <a href="{{ route('my-internship.index') }}" class="btn btn-light fw-semibold text-primary shadow-sm">
+                                <i class="fas fa-file-upload me-1"></i> My Internship Portal
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Stat Cards --}}
+            <div class="col-12">
+                <div class="stat-cards-frame">
+                    <div class="row g-3">
+                        {{-- Hours Rendered --}}
+                        <div class="col-sm-6 col-xl-3">
+                            <div class="stat-card h-100 p-3">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="stat-title">Hours Rendered</span>
+                                    <div class="stat-icon-circle" style="background: rgba(30, 66, 155, 0.1); color: #1E429B;">
+                                        <i class="fas fa-clock"></i>
+                                    </div>
+                                </div>
+                                <div class="stat-value-large mb-1">
+                                    {{ $internSelf->rendered_hours }} <span class="text-muted fw-normal" style="font-size: 0.9rem;">/ {{ $internSelf->required_hours }} hrs</span>
+                                </div>
+                                <div class="progress mb-1" style="height: 6px;">
+                                    <div class="progress-bar bg-primary" role="progressbar" style="width: {{ min(100, $internSelf->progress_percent) }}%;"></div>
+                                </div>
+                                <div class="d-flex justify-content-between text-muted" style="font-size: 0.75rem;">
+                                    <span>Progress</span>
+                                    <span class="fw-bold text-primary">{{ $internSelf->progress_percent }}%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Hours Remaining (converted to working days) --}}
+                        <div class="col-sm-6 col-xl-3">
+                            <div class="stat-card h-100 p-3">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="stat-title">Days Remaining</span>
+                                    <div class="stat-icon-circle" style="background: rgba(245, 158, 11, 0.15); color: #d97706;">
+                                        <i class="fas fa-hourglass-half"></i>
+                                    </div>
+                                </div>
+                                @php
+                                    $daysFromHours = $internSelf->days_remaining_from_hours;
+                                    $wholeDays     = (int) $daysFromHours;
+                                    $leftoverHrs   = $internSelf->hours_remaining - ($wholeDays * 8);
+                                @endphp
+                                <div class="stat-value-large mb-1">
+                                    @if($internSelf->hours_remaining <= 0)
+                                        0 <span class="text-muted fw-normal" style="font-size: 0.9rem;">days</span>
+                                    @else
+                                        {{ $wholeDays }}<span class="text-muted fw-normal" style="font-size: 0.9rem;"> day{{ $wholeDays !== 1 ? 's' : '' }}</span>
+                                        @if($leftoverHrs > 0)
+                                            <span class="text-muted fw-normal" style="font-size: 0.8rem;"> {{ $leftoverHrs }}h</span>
+                                        @endif
+                                    @endif
+                                </div>
+                                <div class="text-muted" style="font-size: 0.75rem;">
+                                    @if($internSelf->hours_remaining <= 0)
+                                        <span class="text-success fw-semibold"><i class="fas fa-check-circle me-1"></i> Target achieved</span>
+                                    @else
+                                        {{ $internSelf->hours_remaining }} hrs &bull; 8-hr working day basis
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Contract Period (duration in months) --}}
+                        <div class="col-sm-6 col-xl-3">
+                            <div class="stat-card h-100 p-3">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="stat-title">Contract Period</span>
+                                    <div class="stat-icon-circle" style="background: rgba(16, 185, 129, 0.12); color: #059669;">
+                                        <i class="fas fa-calendar-check"></i>
+                                    </div>
+                                </div>
+                                <div class="stat-value-large mb-1" style="font-size: 1.25rem;">
+                                    @if($internSelf->contract_months !== null)
+                                        {{ $internSelf->contract_months }} <span class="text-muted fw-normal" style="font-size: 0.85rem;">month{{ $internSelf->contract_months != 1 ? 's' : '' }}</span>
+                                    @else
+                                        &mdash;
+                                    @endif
+                                </div>
+                                <div class="text-muted" style="font-size: 0.75rem;">
+                                    @if($internSelf->contract_start_date && $internSelf->contract_end_date)
+                                        {{ $internSelf->contract_start_date->format('M d, Y') }} &ndash; {{ $internSelf->contract_end_date->format('M d, Y') }}
+                                    @elseif($internSelf->contract_end_date)
+                                        Ends {{ $internSelf->contract_end_date->format('M d, Y') }}
+                                    @else
+                                        No dates set
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Submitted Documents --}}
+                        <div class="col-sm-6 col-xl-3">
+                            <div class="stat-card h-100 p-3">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <span class="stat-title">Submitted Documents</span>
+                                    <div class="stat-icon-circle" style="background: rgba(99, 102, 241, 0.12); color: #6366f1;">
+                                        <i class="fas fa-file-invoice"></i>
+                                    </div>
+                                </div>
+                                <div class="stat-value-large mb-1">
+                                    {{ $internStats['total_docs'] }} <span class="text-muted fw-normal" style="font-size: 0.85rem;">files</span>
+                                </div>
+                                <div class="d-flex gap-2 flex-wrap" style="font-size: 0.72rem;">
+                                    <span class="text-success fw-semibold">{{ $internStats['approved_docs'] }} approved</span>
+                                    &bull;
+                                    <span class="text-warning fw-semibold">{{ $internStats['pending_docs'] }} pending</span>
+                                    @if($internStats['rejected_docs'] > 0)
+                                        &bull;
+                                        <span class="text-danger fw-semibold">{{ $internStats['rejected_docs'] }} rejected</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Recent Documents & Quick Overview --}}
+            <div class="col-lg-8">
+                <div class="graph-container">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h3 class="dashboard-section-title mb-0">
+                            <i class="fas fa-file-alt" style="color: {{ config('brand.primary_color') }};"></i> Recent Submitted Documents
+                        </h3>
+                        <a href="{{ route('my-internship.index') }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-plus me-1"></i> Submit New
+                        </a>
+                    </div>
+
+                    @if($internDocuments->isEmpty())
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-folder-open fa-2x mb-2 text-muted opacity-50"></i>
+                            <p class="mb-2 small">You haven't submitted any internship documents yet.</p>
+                            <a href="{{ route('my-internship.index') }}" class="btn btn-sm btn-brand">Go to My Internship to Upload</a>
+                        </div>
+                    @else
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Document Type</th>
+                                        <th>Period</th>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($internDocuments as $doc)
+                                        <tr>
+                                            <td class="fw-semibold">
+                                                <a href="javascript:void(0)" class="preview-doc-trigger text-decoration-none text-dark" data-preview-url="{{ route('intern-documents.preview', $doc) }}" data-preview-download="{{ route('intern-documents.download', $doc) }}" data-preview-name="{{ $doc->original_filename }}" title="Click to view inside system">
+                                                    <i class="far fa-file-alt text-primary me-1"></i>{{ $doc->documentType?->name ?? 'Document' }}
+                                                </a>
+                                                <span class="d-block text-muted" style="font-size: 0.72rem;">{{ $doc->original_filename }}</span>
+                                            </td>
+                                            <td class="text-muted small">{{ $doc->document_period ?? '—' }}</td>
+                                            <td class="text-muted small">{{ $doc->created_at?->format('M d, Y') }}</td>
+                                            <td>
+                                                <span class="badge bg-{{ $doc->review_status === 'approved' ? 'success' : ($doc->review_status === 'rejected' ? 'danger' : 'warning text-dark') }}">
+                                                    {{ ucfirst($doc->review_status) }}
+                                                </span>
+                                            </td>
+                                            <td class="text-end">
+                                                <button type="button" class="btn btn-sm btn-outline-primary preview-doc-btn" data-preview-url="{{ route('intern-documents.preview', $doc) }}" data-preview-download="{{ route('intern-documents.download', $doc) }}" data-preview-name="{{ $doc->original_filename }}" title="View in System">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <a href="{{ route('intern-documents.download', $doc) }}" class="btn btn-sm btn-outline-secondary" title="Download">
+                                                    <i class="fas fa-download"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-3 text-end">
+                            <a href="{{ route('my-internship.index') }}" class="small text-decoration-none fw-semibold">
+                                View all documents in My Internship &rarr;
+                            </a>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="graph-container">
+                    <h3 class="dashboard-section-title mb-3">
+                        <i class="fas fa-info-circle" style="color: {{ config('brand.primary_color') }};"></i> Internship Details
+                    </h3>
+                    <ul class="list-unstyled mb-3" style="font-size: 0.85rem;">
+                        <li class="mb-2 pb-2 border-bottom">
+                            <span class="text-muted d-block small">Partner Agency:</span>
+                            <strong class="text-dark">{{ $internSelf->partnerAgency?->name ?? '—' }}</strong>
+                        </li>
+                        <li class="mb-2 pb-2 border-bottom">
+                            <span class="text-muted d-block small">Agency Coordinator / Supervisor:</span>
+                            <strong class="text-dark">{{ $internSelf->supervisor ?? '—' }}</strong>
+                        </li>
+                        <li class="mb-2 pb-2 border-bottom">
+                            <span class="text-muted d-block small">Contract Duration:</span>
+                            <strong class="text-dark">
+                                {{ $internSelf->contract_start_date?->format('M d, Y') ?? '—' }} &ndash; {{ $internSelf->contract_end_date?->format('M d, Y') ?? '—' }}
+                            </strong>
+                        </li>
+                        <li class="mb-0">
+                            <span class="text-muted d-block small">Account Email / Username:</span>
+                            <strong class="text-dark">{{ Auth::user()->email ?? Auth::user()->username }}</strong>
+                        </li>
+                    </ul>
+
+                    <div class="p-3 bg-light rounded-3 border">
+                        <h6 class="fw-bold mb-1 small text-dark"><i class="fas fa-lightbulb text-warning me-1"></i> Quick Tip</h6>
+                        <p class="mb-0 text-muted" style="font-size: 0.78rem;">
+                            Ensure your Daily Time Record (DTR) and monthly internship reports are signed before uploading.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+    @else
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4 text-center text-muted">
+                <p class="mb-0">Welcome to {{ config('brand.name') }}.</p>
+            </div>
+        </div>
+    @endif
 </x-app-layout>

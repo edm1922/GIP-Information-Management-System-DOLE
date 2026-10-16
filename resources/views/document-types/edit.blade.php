@@ -44,26 +44,6 @@
                             <div class="form-text" style="font-size: 0.78rem;">A unique, URL-safe identifier. No spaces.</div>
                         </div>
 
-                        {{-- Department --}}
-                        <div class="col-md-6">
-                            <label for="edit_department_id" class="form-label fw-semibold" style="font-size: 0.85rem; color: #374151;">
-                                Department <span class="text-danger">*</span>
-                            </label>
-                            <select id="edit_department_id"
-                                    name="department_id"
-                                    class="form-select field-input"
-                                    x-model="editData.department_id"
-                                    required
-                                    style="background-color: #f9fafb;">
-                                <option value="" disabled>Select a department...</option>
-                                @foreach($departments as $dept)
-                                    <option value="{{ $dept->id }}">{{ $dept->name }}</option>
-                                @endforeach
-                            </select>
-                            <div class="form-text" style="font-size: 0.78rem;">Department that owns this document type.</div>
-                        </div>
-
-
                         <hr class="mt-4 mb-2">
 
                         {{-- Has Expiry --}}

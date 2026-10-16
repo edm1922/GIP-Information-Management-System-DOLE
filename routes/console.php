@@ -5,7 +5,8 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
+    $this->comment(Inspiring\quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('documents:send-expiry-reminders')->everyFifteenMinutes();
+Schedule::command('interns:check-contract-expiry')->dailyAt('00:05');
+Schedule::command('interns:check-completion')->dailyAt('00:10');

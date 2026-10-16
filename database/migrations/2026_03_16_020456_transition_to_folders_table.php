@@ -13,10 +13,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('employees', function (Blueprint $table) {
-            $table->unsignedBigInteger('folder_id')->nullable();
-            $table->foreign('folder_id')->references('id')->on('folders')->nullOnDelete();
-        });
+        if (!Schema::hasColumn('employees', 'folder_id')) {
+            Schema::table('employees', function (Blueprint $table) {
+                $table->unsignedBigInteger('folder_id')->nullable();
+                $table->foreign('folder_id')->references('id')->on('folders')->nullOnDelete();
+            });
+        }
 
         // Link employees to their new physical folder unit based on their current grid location
         $employees = DB::table('employees')->whereNotNull('folder_location_id')->get();
@@ -31,6 +33,9 @@ return new class extends Migration
         }
 
         Schema::table('folder_locations', function (Blueprint $table) {
+            try {
+                $table->dropUnique('folder_locations_folder_code_unique');
+            } catch (\Throwable $e) {}
             $table->dropColumn('folder_code');
             $table->dropColumn('is_available');
         });

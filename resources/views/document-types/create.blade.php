@@ -46,28 +46,6 @@
                             <div class="form-text" style="font-size: 0.78rem;">A unique, URL-safe identifier. No spaces.</div>
                         </div>
 
-                        {{-- Department --}}
-                        <div class="col-md-6">
-                            <label for="department_id" class="form-label fw-semibold" style="font-size: 0.85rem; color: #374151;">
-                                Department <span class="text-danger">*</span>
-                            </label>
-                            <select id="department_id"
-                                    name="department_id"
-                                    class="form-select field-input @error('department_id') is-invalid @enderror"
-                                    required
-                                    style="background-color: #f9fafb;">
-                                <option value="" disabled {{ old('department_id') ? '' : 'selected' }}>Select a department...</option>
-                                @foreach($departments as $dept)
-                                    <option value="{{ $dept->id }}" {{ old('department_id') == $dept->id ? 'selected' : '' }}>
-                                        {{ $dept->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('department_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                            <div class="form-text" style="font-size: 0.78rem;">Department that owns this document type.</div>
-                        </div>
-
-
                         <hr class="mt-4 mb-2">
 
                         {{-- Has Expiry --}}
