@@ -89,6 +89,7 @@ class InternController extends Controller
                 'status' => $validated['status'],
                 'intern_type' => $validated['intern_type'] ?? null,
                 'batch' => $validated['batch'] ?? null,
+                'beneficiary' => $validated['beneficiary'] ?? null,
                 'school' => $validated['school'] ?? null,
                 'course' => $validated['course'] ?? null,
                 'contact_number' => $validated['contact_number'] ?? null,
@@ -114,6 +115,7 @@ class InternController extends Controller
             'partnerAgency',
             'internDocuments.documentType',
             'internDocuments.reviewer',
+            'internDocuments.dtrDays',
         ]);
 
         return view('interns.show', compact('intern'));
@@ -169,6 +171,7 @@ class InternController extends Controller
                 'status' => $validated['status'],
                 'intern_type' => $validated['intern_type'] ?? null,
                 'batch' => $validated['batch'] ?? null,
+                'beneficiary' => $validated['beneficiary'] ?? null,
                 'school' => $validated['school'] ?? null,
                 'course' => $validated['course'] ?? null,
                 'contact_number' => $validated['contact_number'] ?? null,

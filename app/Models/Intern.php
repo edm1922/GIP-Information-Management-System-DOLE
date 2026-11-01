@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\InternHoursService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -30,6 +31,7 @@ class Intern extends Model
         'status',
         'intern_type',
         'batch',
+        'beneficiary',
         'school',
         'course',
         'contact_number',
@@ -42,7 +44,7 @@ class Intern extends Model
             'contract_start_date' => 'date',
             'contract_end_date' => 'date',
             'required_hours' => 'integer',
-            'rendered_hours' => 'integer',
+            'rendered_hours' => 'float',
         ];
     }
 
@@ -69,9 +71,29 @@ class Intern extends Model
         return $this->user?->name ?? 'Unassigned';
     }
 
-    public function getHoursRemainingAttribute(): int
+    public function getHoursRemainingAttribute(): float
     {
-        return max(0, (int) $this->required_hours - (int) $this->rendered_hours);
+        return max(0.0, (float) $this->required_hours - (float) $this->rendered_hours);
+    }
+
+    /**
+     * Hours credited from approved DTRs (equals rendered_hours for structured data).
+     */
+    public function getApprovedHoursAttribute(): float
+    {
+        return app(InternHoursService::class)->approvedHours($this);
+    }
+
+    /** Hours still waiting for review — not yet credited. */
+    public function getPendingHoursAttribute(): float
+    {
+        return app(InternHoursService::class)->pendingHours($this);
+    }
+
+    /** Hours on rejected DTRs — deliberately not credited. */
+    public function getRejectedHoursAttribute(): float
+    {
+        return app(InternHoursService::class)->rejectedHours($this);
     }
 
     /**

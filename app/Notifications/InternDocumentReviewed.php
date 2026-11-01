@@ -21,6 +21,10 @@ class InternDocumentReviewed extends Notification
         $approved = $this->document->review_status === 'approved';
         $type = $this->document->documentType?->name ?? 'Document';
 
+        $urlRoute = $this->document->documentType?->code === 'DTR'
+            ? 'my-internship.index'
+            : 'my-internship.files';
+
         return [
             'kind' => 'intern_document_reviewed',
             'document_id' => (int) $this->document->id,
@@ -35,7 +39,8 @@ class InternDocumentReviewed extends Notification
                 $approved ? 'approved' : 'rejected',
                 $this->document->review_remarks ? ' Remarks: '.$this->document->review_remarks : ''
             ),
-            'url_route' => 'my-internship.index',
+            // Deep-link to the tab the document belongs to.
+            'url_route' => $urlRoute,
             'url_params' => [],
         ];
     }

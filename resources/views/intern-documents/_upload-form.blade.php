@@ -13,6 +13,13 @@
     </div>
 @endif
 
+@if($documentTypes->isEmpty())
+    <div class="alert alert-warning small mb-0">
+        <i class="fas fa-triangle-exclamation me-1"></i>
+        No document types are configured for this tab yet. Please contact the PESO office.
+    </div>
+@else
+
 <form method="POST" action="{{ route('intern-documents.store') }}" enctype="multipart/form-data"
       x-data="{
             typeId: '{{ $selectedTypeId }}',
@@ -48,14 +55,26 @@
                 @endforeach
             </select>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-4" x-show="!isDtr" x-cloak>
             <label class="form-label">Period</label>
             <input type="text" name="document_period" class="form-control" value="{{ old('document_period') }}" placeholder="e.g. June 2026">
         </div>
-        <div class="col-md-4" x-show="isDtr" x-cloak>
-            <label class="form-label">Rendered Hours <span class="text-danger">*</span></label>
-            <input type="number" name="hours" class="form-control" value="{{ old('hours') }}" min="0" max="2000">
-        </div>
+
+        {{-- DTRs capture structured working days; hours are derived from them.
+             Only rendered when the DTR type is actually offered (DTR tab). --}}
+        @if($documentTypes->contains('code', 'DTR'))
+            <div class="col-12" x-show="isDtr" x-cloak>
+                @include('intern-documents._dtr-days-picker')
+            </div>
+
+            <div class="col-12" x-show="isDtr" x-cloak>
+                <div class="alert alert-light border small mb-0">
+                    <i class="fas fa-circle-info me-1" style="color: {{ config('brand.primary_color') }};"></i>
+                    The file you attach is <strong>reference evidence</strong> for the PESO reviewer.
+                    The days you select above are what the system records and what your work calendar shows.
+                </div>
+            </div>
+        @endif
 
         <div class="col-12">
             <label class="form-label">File <span class="text-danger">*</span></label>
@@ -89,3 +108,5 @@
         </div>
     </div>
 </form>
+
+@endif

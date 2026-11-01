@@ -107,4 +107,10 @@
         <label class="form-label">Supervisor</label>
         <input type="text" name="supervisor" class="form-control" value="{{ $val('supervisor') }}">
     </div>
+    <div class="col-md-12">
+        <label class="form-label">Beneficiary</label>
+        <input type="text" name="beneficiary" class="form-control" value="{{ $val('beneficiary') }}"
+               maxlength="255" placeholder="Beneficiary name or reference as it appears on the program documents">
+        <div class="form-text">Optional. Recorded on the intern's profile and used when matching program records.</div>
+    </div>
 </div>

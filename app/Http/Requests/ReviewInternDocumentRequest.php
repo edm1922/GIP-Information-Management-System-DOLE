@@ -19,7 +19,7 @@ class ReviewInternDocumentRequest extends FormRequest
     {
         return [
             'decision' => ['required', Rule::in(['approved', 'rejected'])],
-            'review_remarks' => ['nullable', 'string', 'max:1000'],
+            'review_remarks' => ['nullable', 'string', 'min:10', 'max:2000'],
         ];
     }
 
@@ -27,7 +27,7 @@ class ReviewInternDocumentRequest extends FormRequest
     {
         $validator->after(function ($validator): void {
             if ($this->input('decision') === 'rejected' && ! $this->filled('review_remarks')) {
-                $validator->errors()->add('review_remarks', 'Please provide a reason when rejecting a document.');
+                $validator->errors()->add('review_remarks', 'Please explain in detail why this document is being rejected.');
             }
         });
     }

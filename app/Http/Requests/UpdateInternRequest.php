@@ -52,6 +52,7 @@ class UpdateInternRequest extends FormRequest
             'status' => ['required', Rule::in(Intern::STATUSES)],
             'intern_type' => ['nullable', 'string', 'max:50'],
             'batch' => ['nullable', 'string', 'max:50'],
+            'beneficiary' => ['nullable', 'string', 'max:255'],
 
             // Profile
             'school' => ['nullable', 'string', 'max:150'],

@@ -69,6 +69,7 @@ it('shows an unassigned notice when an intern has no record', function () {
 it('renders the dashboard directly for an assigned intern without redirecting', function () {
     $user = User::factory()->intern()->create([
         'first_name' => 'Maria',
+        'middle_name' => null,
         'last_name' => 'Clara',
     ]);
     Intern::create([

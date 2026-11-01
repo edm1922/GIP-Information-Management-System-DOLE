@@ -37,8 +37,13 @@
             @if(Auth::user()->isIntern())
             <li class="sidebar-section-label">INTERNSHIP</li>
             <li class="nav-item">
-                <a class="nav-link {{ request()->routeIs('my-internship.*') ? 'active' : '' }}" href="{{ route('my-internship.index') }}">
-                    <i class="fas fa-user-graduate"></i> My Internship
+                <a class="nav-link {{ request()->routeIs('my-internship.index') ? 'active' : '' }}" href="{{ route('my-internship.index') }}">
+                    <i class="fas fa-clock"></i> Daily Time Record
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {{ request()->routeIs('my-internship.files') ? 'active' : '' }}" href="{{ route('my-internship.files') }}">
+                    <i class="fas fa-folder-open"></i> 201 Files
                 </a>
             </li>
             @elseif(Auth::user()->hasRole('admin', 'peso_manager'))

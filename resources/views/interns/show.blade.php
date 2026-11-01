@@ -43,6 +43,7 @@
                         <li class="mb-1"><strong>School:</strong> {{ $intern->school ?? '—' }}</li>
                         <li class="mb-1"><strong>Course:</strong> {{ $intern->course ?? '—' }}</li>
                         <li class="mb-1"><strong>Contact:</strong> {{ $intern->contact_number ?? '—' }}</li>
+                    <li class="mb-1"><strong>Beneficiary:</strong> {{ $intern->beneficiary ?? '—' }}</li>
                         <li class="mb-1"><strong>Contract:</strong>
                             {{ $intern->contract_start_date?->format('M d, Y') ?? '—' }}
                             &ndash;
@@ -78,7 +79,10 @@
                                                 <i class="far fa-file-alt text-primary me-1"></i>{{ $document->original_filename }}
                                             </a>
                                         </td>
-                                        <td style="font-size: 0.82rem;">{{ $document->document_period ?? '—' }}</td>
+                                        <td style="font-size: 0.82rem;">
+                                            {{ $document->dtr_summary ?? $document->document_period ?? '—' }}
+                                            @include('intern-documents._dtr-days-trigger', ['document' => $document])
+                                        </td>
                                         <td>
                                             <span class="badge bg-{{ $document->review_status === 'approved' ? 'success' : ($document->review_status === 'rejected' ? 'danger' : 'warning') }}">
                                                 {{ ucfirst($document->review_status) }}
@@ -98,12 +102,13 @@
                                                     <input type="hidden" name="decision" value="approved">
                                                     <button class="btn btn-sm btn-outline-success" type="submit" title="Approve"><i class="fas fa-check"></i></button>
                                                 </form>
-                                                <form method="POST" action="{{ route('intern-documents.review', $document) }}" class="d-inline">
-                                                    @csrf
-                                                    @method('PATCH')
-                                                    <input type="hidden" name="decision" value="rejected">
-                                                    <button class="btn btn-sm btn-outline-danger" type="submit" title="Reject"><i class="fas fa-times"></i></button>
-                                                </form>
+                                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                                        data-reject-document
+                                                        data-reject-action="{{ route('intern-documents.review', $document) }}"
+                                                        data-reject-label="{{ $intern->name }} · {{ $document->documentType?->name ?? 'Document' }} · {{ $document->dtr_summary ?? $document->document_period ?? 'no period' }}"
+                                                        title="Reject with a written explanation">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
                                             @endif
                                         </td>
                                     </tr>
@@ -117,4 +122,7 @@
             </div>
         </div>
     </div>
+
+    @include('intern-documents._dtr-days-viewer')
+    @include('intern-documents._reject-modal')
 </x-app-layout>

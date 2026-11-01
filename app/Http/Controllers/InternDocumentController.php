@@ -10,6 +10,7 @@ use App\Notifications\InternDocumentReviewed;
 use App\Notifications\InternDocumentUploaded;
 use App\Services\AuditService;
 use App\Services\InternDocumentUploadService;
+use App\Services\InternHoursService;
 use App\Services\InternNotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,7 +33,7 @@ class InternDocumentController extends Controller
         $this->authorize('viewAny', InternDocument::class);
 
         $query = InternDocument::query()
-            ->with(['intern.user', 'documentType', 'uploader', 'reviewer']);
+            ->with(['intern.user', 'documentType', 'uploader', 'reviewer', 'dtrDays']);
 
         if ($status = $request->get('review_status')) {
             $query->where('review_status', $status);
@@ -42,9 +43,90 @@ class InternDocumentController extends Controller
             $query->where('intern_id', (int) $internId);
         }
 
+        // Free-text search across the file name and the intern's name/username.
+        if ($search = trim((string) $request->get('q'))) {
+            $like = '%'.$search.'%';
+            $query->where(function ($where) use ($like) {
+                $where->where('original_filename', 'like', $like)
+                    ->orWhereHas('intern.user', function ($user) use ($like) {
+                        $user->where('first_name', 'like', $like)
+                            ->orWhere('middle_name', 'like', $like)
+                            ->orWhere('last_name', 'like', $like)
+                            ->orWhere('username', 'like', $like);
+                    });
+            });
+        }
+
         $documents = $query->latest()->paginate(20)->withQueryString();
 
         return view('intern-documents.index', compact('documents'));
+    }
+
+    /**
+     * Folder browser: one folder per intern, showing how many DTRs / 201 files
+     * they have submitted. Supports searching by intern and filtering by state.
+     */
+    public function folders(Request $request): View
+    {
+        $this->authorize('viewAny', InternDocument::class);
+
+        $search = trim((string) $request->get('q'));
+        $filter = (string) $request->get('filter');
+
+        $interns = Intern::query()
+            ->select('interns.*')
+            ->leftJoin('users', 'users.id', '=', 'interns.user_id')
+            ->leftJoin('companies', 'companies.id', '=', 'interns.partner_agency_id')
+            ->with(['user', 'partnerAgency'])
+            ->withCount([
+                'internDocuments as dtr_count' => fn ($query) => $query
+                    ->whereHas('documentType', fn ($type) => $type->where('code', 'DTR')),
+                'internDocuments as files_count' => fn ($query) => $query
+                    ->whereDoesntHave('documentType', fn ($type) => $type->where('code', 'DTR')),
+                'internDocuments as pending_count' => fn ($query) => $query
+                    ->where('review_status', 'pending'),
+            ])
+            ->when($search !== '', function ($query) use ($search) {
+                $like = '%'.$search.'%';
+                $query->where(function ($where) use ($like) {
+                    $where->where('users.first_name', 'like', $like)
+                        ->orWhere('users.middle_name', 'like', $like)
+                        ->orWhere('users.last_name', 'like', $like)
+                        ->orWhere('users.username', 'like', $like)
+                        ->orWhere('companies.name', 'like', $like);
+                });
+            })
+            ->when($filter === 'pending', fn ($query) => $query
+                ->whereHas('internDocuments', fn ($documents) => $documents->where('review_status', 'pending')))
+            ->when($filter === 'none', fn ($query) => $query->whereDoesntHave('internDocuments'))
+            ->orderBy('users.last_name')
+            ->orderBy('users.first_name')
+            ->paginate(24)
+            ->withQueryString();
+
+        return view('intern-documents.folders', compact('interns', 'search', 'filter'));
+    }
+
+    /**
+     * A single intern's folder: their DTRs and 201 files side by side.
+     */
+    public function internFolder(Intern $intern): View
+    {
+        $this->authorize('viewAny', InternDocument::class);
+
+        $intern->load(['user', 'partnerAgency']);
+
+        $documents = $intern->internDocuments()
+            ->with(['documentType', 'uploader', 'reviewer', 'dtrDays'])
+            ->latest()
+            ->get();
+
+        $isDtr = fn (InternDocument $document) => $document->documentType?->code === 'DTR';
+
+        $dtrs = $documents->filter($isDtr)->values();
+        $files = $documents->reject($isDtr)->values();
+
+        return view('intern-documents.folder', compact('intern', 'dtrs', 'files'));
     }
 
     /**
@@ -72,10 +154,21 @@ class InternDocumentController extends Controller
         $this->notifier->notifyPesoTeam(new InternDocumentUploaded($document));
 
         $redirect = $actor->isIntern()
-            ? redirect()->route('my-internship.index')
+            ? redirect()->route($this->selfServiceRouteFor($document))
             : back();
 
         return $redirect->with('success', 'Document uploaded successfully and is now pending review.');
+    }
+
+    /**
+     * Interns are split across two tabs: DTRs land on the Daily Time Record tab,
+     * every other document lands on 201 Files.
+     */
+    private function selfServiceRouteFor(InternDocument $document): string
+    {
+        return $document->documentType?->code === 'DTR'
+            ? 'my-internship.index'
+            : 'my-internship.files';
     }
 
     /**
@@ -91,6 +184,9 @@ class InternDocumentController extends Controller
             'reviewed_at' => now(),
             'review_remarks' => $validated['review_remarks'] ?? null,
         ]);
+
+        // Approving credits the claimed hours; rejecting removes them again.
+        app(InternHoursService::class)->recalculate($document->intern);
 
         $this->notifier->notifyIntern($document->intern, new InternDocumentReviewed($document->fresh(['documentType'])));
 

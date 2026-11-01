@@ -245,7 +245,7 @@
                         </div>
                         <div>
                             <a href="{{ route('my-internship.index') }}" class="btn btn-light fw-semibold text-primary shadow-sm">
-                                <i class="fas fa-file-upload me-1"></i> My Internship Portal
+                                <i class="fas fa-file-upload me-1"></i> Daily Time Record
                             </a>
                         </div>
                     </div>
@@ -367,6 +367,11 @@
                 </div>
             </div>
 
+            {{-- Work Calendar: days claimed on submitted DTRs --}}
+            <div class="col-12">
+                @include('partials.intern-work-calendar')
+            </div>
+
             {{-- Recent Documents & Quick Overview --}}
             <div class="col-lg-8">
                 <div class="graph-container">
@@ -383,7 +388,7 @@
                         <div class="text-center py-4 text-muted">
                             <i class="fas fa-folder-open fa-2x mb-2 text-muted opacity-50"></i>
                             <p class="mb-2 small">You haven't submitted any internship documents yet.</p>
-                            <a href="{{ route('my-internship.index') }}" class="btn btn-sm btn-brand">Go to My Internship to Upload</a>
+                            <a href="{{ route('my-internship.index') }}" class="btn btn-sm btn-brand">Go to Daily Time Record to Upload</a>
                         </div>
                     @else
                         <div class="table-responsive">
@@ -406,7 +411,7 @@
                                                 </a>
                                                 <span class="d-block text-muted" style="font-size: 0.72rem;">{{ $doc->original_filename }}</span>
                                             </td>
-                                            <td class="text-muted small">{{ $doc->document_period ?? '—' }}</td>
+                                            <td class="text-muted small">{{ $doc->dtr_summary ?? $doc->document_period ?? '—' }}</td>
                                             <td class="text-muted small">{{ $doc->created_at?->format('M d, Y') }}</td>
                                             <td>
                                                 <span class="badge bg-{{ $doc->review_status === 'approved' ? 'success' : ($doc->review_status === 'rejected' ? 'danger' : 'warning text-dark') }}">
@@ -427,8 +432,8 @@
                             </table>
                         </div>
                         <div class="mt-3 text-end">
-                            <a href="{{ route('my-internship.index') }}" class="small text-decoration-none fw-semibold">
-                                View all documents in My Internship &rarr;
+                            <a href="{{ route('my-internship.files') }}" class="small text-decoration-none fw-semibold">
+                                View all documents in 201 Files &rarr;
                             </a>
                         </div>
                     @endif

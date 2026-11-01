@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Company;
 use App\Models\Intern;
+use App\Services\InternWorkCalendar;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -66,6 +67,7 @@ class DashboardController extends Controller
         // ── Intern self-service dashboard data ──
         $internSelf = null;
         $internDocuments = collect();
+        $workCalendar = null;
         $internStats = [
             'total_docs' => 0,
             'approved_docs' => 0,
@@ -82,6 +84,9 @@ class DashboardController extends Controller
                 $internStats['pending_docs'] = $docs->where('review_status', 'pending')->count();
                 $internStats['rejected_docs'] = $docs->where('review_status', 'rejected')->count();
                 $internDocuments = $docs->sortByDesc('created_at')->take(5);
+
+                $workCalendar = app(InternWorkCalendar::class)
+                    ->month($internSelf, $request->get('work_month'));
             }
         }
 
@@ -146,6 +151,7 @@ class DashboardController extends Controller
             'internSelf',
             'internDocuments',
             'internStats',
+            'workCalendar',
             'totalInterns',
             'activeInterns',
             'inactiveInterns',

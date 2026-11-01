@@ -19,7 +19,7 @@ function makeInternDocumentType(string $code = 'DTR'): DocumentType
     ]);
 }
 
-it('lets an intern upload a DTR and advances rendered hours', function () {
+it('lets an intern upload a DTR with selected days but credits hours only after approval', function () {
     Storage::fake('local');
 
     $type = makeInternDocumentType('DTR');
@@ -32,10 +32,12 @@ it('lets an intern upload a DTR and advances rendered hours', function () {
         'status' => 'active',
     ]);
 
+    $worked = [now()->subDays(3)->format('Y-m-d'), now()->subDays(2)->format('Y-m-d')];
+
     $response = $this->actingAs($user)->post(route('intern-documents.store'), [
         'document_type_id' => $type->id,
-        'document_period' => 'June 2026',
-        'hours' => 8,
+        'days' => $worked,
+        'hours_per_day' => 8,
         'file' => UploadedFile::fake()->create('dtr.pdf', 50, 'application/pdf'),
     ]);
 
@@ -43,17 +45,28 @@ it('lets an intern upload a DTR and advances rendered hours', function () {
     $response->assertSessionHasNoErrors();
 
     $intern->refresh();
-    expect($intern->rendered_hours)->toBe(8);
+    // Pending DTRs are not credited yet.
+    expect($intern->rendered_hours)->toBe(0.0)
+        ->and($intern->pending_hours)->toBe(16.0);
 
     $document = InternDocument::first();
     expect($document)->not->toBeNull();
     expect((int) $document->intern_id)->toBe((int) $intern->id);
     expect($document->review_status)->toBe('pending');
     expect($document->file_path)->toStartWith('intern-docs/'.$intern->id.'/');
+    expect($document->dtrDays()->count())->toBe(2);
     Storage::disk('local')->assertExists($document->file_path);
+
+    // Approval is what credits the hours.
+    $admin = User::factory()->admin()->create();
+    $this->actingAs($admin)
+        ->patch(route('intern-documents.review', $document), ['decision' => 'approved'])
+        ->assertSessionHasNoErrors();
+
+    expect($intern->fresh()->rendered_hours)->toBe(16.0);
 });
 
-it('rejects a DTR upload without rendered hours', function () {
+it('rejects a DTR upload without selected working days', function () {
     Storage::fake('local');
 
     $type = makeInternDocumentType('DTR');
@@ -71,7 +84,7 @@ it('rejects a DTR upload without rendered hours', function () {
         'file' => UploadedFile::fake()->create('dtr.pdf', 50, 'application/pdf'),
     ]);
 
-    $response->assertSessionHasErrors('hours');
+    $response->assertSessionHasErrors('days');
     expect(InternDocument::count())->toBe(0);
 });
 
@@ -151,8 +164,8 @@ it('allows an intern and admin to preview a document inline with appropriate con
 
     $this->actingAs($user)->post(route('intern-documents.store'), [
         'document_type_id' => $type->id,
-        'document_period' => 'July 2026',
-        'hours' => 8,
+        'days' => [now()->subDays(2)->format('Y-m-d')],
+        'hours_per_day' => 8,
         'file' => UploadedFile::fake()->create('report.pdf', 30, 'application/pdf'),
     ]);
 

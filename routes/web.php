@@ -119,6 +119,15 @@ Route::middleware('auth')->group(function () {
         Route::post('/', [InternDocumentController::class, 'store'])
             ->name('store');
 
+        // Folder browser: one folder per intern.
+        Route::get('/folders', [InternDocumentController::class, 'folders'])
+            ->middleware('role:admin,peso_manager')
+            ->name('folders');
+
+        Route::get('/folders/{intern}', [InternDocumentController::class, 'internFolder'])
+            ->middleware('role:admin,peso_manager')
+            ->name('folder');
+
         Route::get('/{document}/preview', [InternDocumentController::class, 'preview'])
             ->middleware('can:download,document')
             ->name('preview')
@@ -136,7 +145,11 @@ Route::middleware('auth')->group(function () {
 
     // ── Intern Self-Service ──
     Route::prefix('my-internship')->name('my-internship.')->middleware('role:intern')->group(function () {
+        // Daily Time Record tab (route name kept for existing notifications/links).
         Route::get('/', [MyInternshipController::class, 'index'])->name('index');
+
+        // 201 Files tab: every non-DTR intern document.
+        Route::get('/201-files', [MyInternshipController::class, 'files'])->name('files');
     });
 });
 
