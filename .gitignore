@@ -29,3 +29,5 @@ tools/Meilisearch/meilisearch.exe
 tools/Meilisearch/data.ms/
 tools/Meilisearch/*.vbs
 tools/Meilisearch/*.bat
+# graphify knowledge-graph output (generated)
+graphify-out/
