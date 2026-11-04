@@ -4,6 +4,8 @@ Target: **Ubuntu 24.04 LTS**, region **Southeast Asia (Singapore)**, nginx + PHP
 app on the VM, MySQL on **Azure Database for MySQL Flexible Server** (TLS required),
 uploaded files on the VM's persistent OS disk.
 
+> **Admin username:** 	ripz19 (replace it if your VM uses a different account).
+
 > The app is server-rendered Laravel: one process serves both UI and backend.
 > No code changes are needed beyond `.env`; `config/database.php` already reads
 > `MYSQL_ATTR_SSL_CA` for the Azure MySQL certificate.
@@ -41,7 +43,7 @@ uploaded files on the VM's persistent OS disk.
 
 ## 1. Server bootstrap
 
-SSH in: `ssh azureuser@<public-ip>` (or the cloudapp hostname), then:
+SSH in: `ssh tripz19@<public-ip>` (or the cloudapp hostname), then:
 
 ```bash
 git clone https://github.com/edm1922/GIP-Information-Management-System-DOLE.git ~/gips-deploy
@@ -105,7 +107,7 @@ php deploy\azure\05-migrate-data.php
 Uploaded DTR scans (36 files, 0.5 MB):
 
 ```powershell
-scp -r "C:\xampp\htdocs\GIPS\storage\app\private\intern-docs" azureuser@<public-ip>:/tmp/intern-docs
+scp -r "C:\xampp\htdocs\GIPS\storage\app\private\intern-docs" tripz19@<public-ip>:/tmp/intern-docs
 ```
 ```bash
 sudo -u www-data mkdir -p /var/www/gips/storage/app/private
