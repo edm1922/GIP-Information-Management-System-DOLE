@@ -31,3 +31,7 @@ tools/Meilisearch/*.vbs
 tools/Meilisearch/*.bat
 # graphify knowledge-graph output (generated)
 graphify-out/
+
+# Azure deployment: local secrets + downloaded CA bundle
+deploy/azure/.migrate.env
+deploy/azure/ca/
