@@ -168,3 +168,28 @@ sudo crontab -u www-data -l 2>/dev/null   # verify scheduler line
 Local authentication verified against Azure MySQL: `admin`, `peso_manager`, `juandc` all `AUTH_OK`; `GET /login` ? 200.
 
 > Note: `.env` has `SESSION_SECURE_COOKIE=true`, so the app must be used over **HTTPS**; plain `http://20.191.145.6` will not keep a login session (by design).
+
+## HTTPS and public verification (completed)
+
+- **Temporary canonical URL: `https://20-191-145-6.sslip.io`** — Let's Encrypt certificate issued
+  (expires 2027-02-02, auto-renew via certbot timer), HTTP ? HTTPS 301 redirect verified.
+  `APP_URL` currently points at it; nginx `server_name` also lists
+  `gims-barmm.southeastasia.cloudapp.azure.com` ready for the Azure DNS label.
+- **The Azure DNS label `gims-barmm` was not resolving** (NXDOMAIN on 1.1.1.1/8.8.8.8) at the time of writing —
+  set it on the public IP `20.191.145.6` (the one attached to NIC `gims473`), then run:
+  `sudo certbot --nginx -d gims-barmm.southeastasia.cloudapp.azure.com` + update `APP_URL`.
+- **Verified from the public internet (authenticated, both roles):**
+
+| Check | Result |
+|---|---|
+| `GET /login`, `GET /` | 200 |
+| admin login ? `/dashboard` | 200 (intern widgets render) |
+| `/interns`, `/intern-documents`, `/intern-documents/folders` | 200 |
+| `/reports/intern` + 4 CSV exports | 200, correct `text/csv` attachment filenames |
+| document preview + download (id 4) | 200, 186,133 bytes served from local disk |
+| intern login ? `/my-internship` (DTR tab) | 200 (hours/calendar markers present) |
+| `/my-internship/201-files` | 200 |
+| unauthenticated access | redirected to login |
+
+Remaining hardening (optional, not blocking): change seeded passwords, restrict SSH 22 to the admin IP,
+rotate the `gimsadmin` password, delete the old East US resource group.
