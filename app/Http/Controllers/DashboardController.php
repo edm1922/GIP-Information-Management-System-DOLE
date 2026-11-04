@@ -16,11 +16,23 @@ class DashboardController extends Controller
         $month = $request->get('month');
 
         // ── Calendar Logic ──
-        $calDateStr = $request->get('cal_date', date('Y-m-d'));
-        $calendarDate = date('Y-m-01', strtotime($calDateStr));
+        $today = now();
+        $todayStr = $today->toDateString();
+        $calDateStr = (string) $request->get('cal_date', $todayStr);
+        $calTimestamp = strtotime($calDateStr) ?: strtotime($todayStr);
+
+        // Anchor the grid to the first of the viewed month so month navigation
+        // never overflows (e.g. Jan 31 + 1 month would land in March).
+        $calendarDate = date('Y-m-01', $calTimestamp);
         $calendarYear = date('Y', strtotime($calendarDate));
         $calendarMonth = date('m', strtotime($calendarDate));
         $calendarMonthName = date('F', strtotime($calendarDate));
+
+        // The pill shows the date the calendar points at: today while viewing the
+        // current month, otherwise the first of the month being browsed.
+        $isCurrentMonth = $calendarYear === $today->format('Y')
+            && $calendarMonth === $today->format('m');
+        $pillDate = $isCurrentMonth ? $todayStr : $calendarDate;
 
         $daysInMonth = date('t', strtotime($calendarDate));
         $dayOfWeekOfFirst = date('w', strtotime($calendarDate));
@@ -36,7 +48,7 @@ class DashboardController extends Controller
             ];
         }
 
-        $todayStr = date('Y-m-d');
+        $todayStr = $today->toDateString();
         for ($day = 1; $day <= $daysInMonth; $day++) {
             $currentDateStr = sprintf('%04d-%02d-%02d', $calendarYear, $calendarMonth, $day);
             $calendarData[] = [
@@ -128,15 +140,19 @@ class DashboardController extends Controller
                 ])
                 ->values();
 
+            // Group in PHP: EXTRACT(MONTH …) is MySQL-only and breaks SQLite
+            // (tests) as well as Postgres. The intern table is small, so the
+            // in-memory grouping is cheap and keeps the dashboard portable.
             $internsTrend = Intern::query()
-                ->select(
-                    DB::raw('EXTRACT(MONTH FROM created_at) as month'),
-                    DB::raw('count(*) as count')
-                )
                 ->whereYear('created_at', $year)
-                ->groupBy('month')
-                ->orderBy('month')
-                ->get();
+                ->get(['created_at'])
+                ->groupBy(fn (Intern $intern) => (int) $intern->created_at->format('n'))
+                ->sortKeys()
+                ->map(fn ($group, $month) => [
+                    'month' => (int) $month,
+                    'count' => $group->count(),
+                ])
+                ->values();
         }
 
         return view('dashboard', compact(
@@ -144,6 +160,8 @@ class DashboardController extends Controller
             'month',
             'calendarData',
             'calendarDate',
+            'pillDate',
+            'isCurrentMonth',
             'calendarMonthName',
             'calendarYear',
             'showInternStats',

@@ -4,9 +4,9 @@
         <small>Welcome to the {{ config('brand.name') }}</small></div>
         <div class="d-flex align-items-center gap-3">
             <div class="calendar-wrapper ms-auto" x-data="{ open: false }">
-                <div class="date-pill" @click="open = !open">
+                <div class="date-pill" @click="open = !open" title="{{ $isCurrentMonth ? 'Today' : 'Showing ' . $calendarMonthName . ' ' . $calendarYear }}">
                     <i class="fas fa-calendar-alt me-2" style="color: {{ config('brand.primary_color') }} !important;"></i>
-                    <span>{{ date('M d, Y', strtotime($calendarDate)) }}</span>
+                    <span>{{ date('M d, Y', strtotime($pillDate)) }}</span>
                 </div>
 
                 <div class="calendar-dropdown" x-show="open" @click.away="open = false" x-transition x-cloak>
