@@ -13,6 +13,17 @@
             @can('update', $intern)
                 <a class="btn btn-brand" href="{{ route('interns.edit', $intern) }}"><i class="fas fa-pen"></i> Edit</a>
             @endcan
+            @can('delete', $intern)
+                <button type="button" class="btn btn-outline-danger"
+                    data-bs-toggle="modal" data-bs-target="#internConfirmModal"
+                    data-action="{{ route('interns.destroy', $intern) }}"
+                    data-method="DELETE"
+                    data-title="Archive intern"
+                    data-message="Archive {{ $intern->name }}? They will be hidden from the active list and their login will be disabled. You can restore them from the Archived view on the interns list."
+                    data-submit="Archive">
+                    <i class="fas fa-box-archive"></i> Archive
+                </button>
+            @endcan
         </div>
     </div>
 
@@ -125,4 +136,5 @@
 
     @include('intern-documents._dtr-days-viewer')
     @include('intern-documents._reject-modal')
+    @include('interns._confirm-modal')
 </x-app-layout>

@@ -23,7 +23,11 @@ class InternController extends Controller
     {
         $this->authorize('viewAny', Intern::class);
 
-        $query = Intern::query()->with(['user', 'partnerAgency']);
+        $showArchived = $request->boolean('archived') && $request->user()->hasRole('admin');
+
+        $query = $showArchived
+            ? Intern::onlyTrashed()->with(['user', 'partnerAgency'])
+            : Intern::query()->with(['user', 'partnerAgency']);
 
         if ($status = $request->get('status')) {
             $query->where('status', $status);
@@ -52,7 +56,7 @@ class InternController extends Controller
 
         $agencies = Company::query()->where('is_partner_agency', true)->orderBy('name')->get();
 
-        return view('interns.index', compact('interns', 'agencies'));
+        return view('interns.index', compact('interns', 'agencies', 'showArchived'));
     }
 
     /**
@@ -193,6 +197,7 @@ class InternController extends Controller
         $this->authorize('delete', $intern);
 
         $intern->delete();
+        $intern->user?->update(['is_active' => false]);
         AuditService::log('deleted', 'Deleted intern', $intern);
 
         return redirect()->route('interns.index')
@@ -208,6 +213,7 @@ class InternController extends Controller
         $this->authorize('restore', $intern);
 
         $intern->restore();
+        $intern->user?->update(['is_active' => true]);
         AuditService::log('restored', 'Restored intern', $intern);
 
         return redirect()->route('interns.index')
@@ -223,9 +229,16 @@ class InternController extends Controller
         $this->authorize('forceDelete', $intern);
 
         $userId = $intern->user_id;
+
+        // Archive the documents (keeps the uploaded files on disk) so they stop
+        // appearing in review/folder listings once the intern is gone.
+        $intern->internDocuments()->delete();
         $intern->forceDelete();
 
         if ($userId) {
+            // Users are soft-deleted, never hard-deleted: audit logs cascade on
+            // hard deletes and documents.uploaded_by is restricted.
+            User::query()->whereKey($userId)->update(['is_active' => false]);
             User::query()->whereKey($userId)->delete();
         }
 
