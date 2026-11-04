@@ -1,14 +1,9 @@
 #!/usr/bin/env bash
-# GIMS — Ubuntu 24.04 server bootstrap (nginx, PHP 8.3, certbot, firewall, hardening)
+# GIMS - Ubuntu 24.04 server bootstrap (nginx, PHP 8.3, certbot, firewall, hardening)
 # Usage: sudo APP_HOST=<your-hostname> bash deploy/azure/01-setup-server.sh
 set -euo pipefail
 
 APP_HOST="${APP_HOST:?set APP_HOST (e.g. gims-barmm.southeastasia.cloudapp.azure.com)}"
-
-if [[ "${EUID}" -eq 0 && "${ALLOW_ROOT:-0}" != "1" ]]; then
-  echo "Run as a sudo-capable user (e.g. azureuser), not root: sudo APP_HOST=... bash $0" >&2
-  exit 1
-fi
 
 echo "==> apt packages"
 export DEBIAN_FRONTEND=noninteractive
