@@ -145,3 +145,26 @@ sudo crontab -u www-data -l 2>/dev/null   # verify scheduler line
 - `php artisan storage:link` (uploads are streamed through controllers)
 - `php artisan route:cache` â€” **fails** on this app: `routes/web.php` has Closure routes
 - Meilisearch (`SCOUT_DRIVER=collection`)
+
+---
+
+## Current deployment status (live)
+
+| Item | Value |
+|---|---|
+| VM | `GIMS` · `20.191.145.6` · Ubuntu 24.04.5 · Southeast Asia |
+| SSH | `ssh -i <key>.pem tripz19@20.191.145.6` (key-only, passwordless sudo) |
+| App path | `/var/www/gips` (source copied; not a git checkout yet) |
+| PHP / web | PHP 8.3.6 FPM + nginx 1.24 (vhost server_name: `20.191.145.6` until the DNS label is set) |
+| Database | Azure Database for MySQL 8.4 · `gims-db.mysql.database.azure.com` · `gips_db` · app user `gimsapp` (random password in `.env`) |
+| Migrations | all 60 ran on Azure MySQL |
+| Data | users 3 · interns 2 · documents 3 · dtr_days 24 · audit_logs 74 · notifications 26 · companies 4 (rendered hours 104.2 — verified equal to local) |
+| Uploads | 39 files in `storage/app/private/intern-docs` (paths verified against `documents.file_path`) |
+| Scheduler | `www-data` crontab: `* * * * * php artisan schedule:run` |
+| Backups | `/etc/cron.d/gips-backup` nightly 02:15 ? `/var/backups/gips` (DB dump + uploads tar, 14-day rotation); backup privileges granted to `gimsapp` |
+| Firewall | ufw active; **NSG 80/443 still needs opening** |
+| TLS | pending — needs the `gims-barmm` DNS label on `GIMS-ip` before `certbot` |
+
+Local authentication verified against Azure MySQL: `admin`, `peso_manager`, `juandc` all `AUTH_OK`; `GET /login` ? 200.
+
+> Note: `.env` has `SESSION_SECURE_COOKIE=true`, so the app must be used over **HTTPS**; plain `http://20.191.145.6` will not keep a login session (by design).
