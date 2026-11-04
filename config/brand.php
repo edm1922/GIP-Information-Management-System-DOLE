@@ -10,7 +10,7 @@ return [
 
     'barcode_prefix' => env('APP_BARCODE_PREFIX', 'CSC'),
 
-    'password_suffix' => env('APP_PASSWORD_SUFFIX', 'tpc'),
+    'password_suffix' => env('APP_PASSWORD_SUFFIX', 'gip'),
 
     'logo' => env('APP_BRAND_LOGO', 'image/dole-emblem.png'),
 
