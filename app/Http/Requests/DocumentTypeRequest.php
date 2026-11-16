@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\DocumentType;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -14,8 +15,16 @@ class DocumentTypeRequest extends FormRequest
 
     public function rules(): array
     {
-        $documentTypeId = $this->route('documentType')?->id;
+        // Both the web resource route and the API route declare the parameter
+        // as `{document_type}`, so resolve that name first. The camelCase name
+        // is kept for routes/actions that bind it explicitly.
+        $documentType = $this->route('documentType') ?? $this->route('document_type');
 
+        $documentTypeId = $documentType instanceof DocumentType
+            ? $documentType->getKey()
+            : (is_numeric($documentType) ? (int) $documentType : null);
+
+        // Legacy web forms still post the record id; keep it as a last resort.
         if (! $documentTypeId && $this->filled('id')) {
             $documentTypeId = (int) $this->input('id');
         }
