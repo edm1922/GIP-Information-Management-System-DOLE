@@ -1,5 +1,9 @@
 <?php
 
+use App\Models\DocumentType;
+use App\Models\Intern;
+use App\Models\User;
+
 /*
 |--------------------------------------------------------------------------
 | Test Case
@@ -42,7 +46,29 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * Create an intern row linked to an existing user with sensible defaults.
+ */
+function apiCreateIntern(User $user, array $attributes = []): Intern
 {
-    // ..
+    return Intern::create(array_merge([
+        'user_id' => $user->id,
+        'required_hours' => 486,
+        'rendered_hours' => 0,
+        'status' => 'active',
+    ], $attributes));
+}
+
+/**
+ * Create an intern document type for API upload/review tests.
+ */
+function apiInternDocumentType(string $code = 'DTR'): DocumentType
+{
+    return DocumentType::create([
+        'name' => $code === 'DTR' ? 'Daily Time Record' : 'Accomplishment Report',
+        'code' => $code,
+        'has_expiry' => false,
+        'is_intern_document' => true,
+        'is_optional' => false,
+    ]);
 }
