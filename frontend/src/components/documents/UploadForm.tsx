@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { DtrDaysPicker } from "@/components/documents/DtrDaysPicker";
 import { ApiError, api } from "@/lib/api";
@@ -29,7 +29,12 @@ export function UploadForm({
 }: UploadFormProps) {
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  const [typeId, setTypeId] = useState("");
+  // When a tab offers a single document type (the DTR tab only has "Daily Time
+  // Record"), preselect it and skip the one-option dropdown entirely.
+  const singleType = documentTypes.length === 1 ? documentTypes[0] : null;
+  const lockedTypeId = singleType ? String(singleType.id) : "";
+
+  const [typeId, setTypeId] = useState(lockedTypeId);
   const [period, setPeriod] = useState("");
   const [days, setDays] = useState<string[]>([]);
   const [hours, setHours] = useState<Record<string, number>>({});
@@ -40,12 +45,17 @@ export function UploadForm({
   const [error, setError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
 
-  const selectedType = documentTypes.find((type) => String(type.id) === typeId) ?? null;
+  useEffect(() => {
+    if (lockedTypeId) setTypeId(lockedTypeId);
+  }, [lockedTypeId]);
+
+  const effectiveTypeId = singleType ? lockedTypeId : typeId;
+  const selectedType = documentTypes.find((type) => String(type.id) === effectiveTypeId) ?? null;
   const isDtr = selectedType?.code === "DTR";
   const offersDtr = documentTypes.some((type) => type.code === "DTR");
 
   const reset = () => {
-    setTypeId("");
+    setTypeId(lockedTypeId);
     setPeriod("");
     setDays([]);
     setHours({});
@@ -59,7 +69,7 @@ export function UploadForm({
     setSuccess(null);
     setErrors({});
 
-    if (!typeId) {
+    if (!effectiveTypeId) {
       setErrors({ document_type_id: ["Please select a document type."] });
       return;
     }
@@ -69,7 +79,7 @@ export function UploadForm({
     }
 
     const formData = new FormData();
-    formData.append("document_type_id", typeId);
+    formData.append("document_type_id", effectiveTypeId);
     if (internId) formData.append("intern_id", String(internId));
     if (period.trim() && !isDtr) formData.append("document_period", period.trim());
 
@@ -130,26 +140,36 @@ export function UploadForm({
       {success && <div className="alert alert-success">{success}</div>}
 
       <div className="row g-3">
-        <div className="col-md-4">
-          <label className="form-label" htmlFor="document_type_id">
-            Document Type <span className="text-danger">*</span>
-          </label>
-          <select
-            id="document_type_id"
-            className="form-select"
-            value={typeId}
-            onChange={(event) => setTypeId(event.target.value)}
-            required
-          >
-            <option value="">Select…</option>
-            {documentTypes.map((type) => (
-              <option key={type.id} value={type.id} data-code={type.code}>
-                {type.name}
-                {type.is_optional ? " (optional)" : ""}
-              </option>
-            ))}
-          </select>
-        </div>
+        {singleType ? (
+          <div className="col-md-4">
+            <label className="form-label">Document Type</label>
+            <div className="form-control-plaintext fw-semibold">
+              {singleType.name}
+              {singleType.is_optional && <span className="badge bg-light text-muted fw-normal ms-1">optional</span>}
+            </div>
+          </div>
+        ) : (
+          <div className="col-md-4">
+            <label className="form-label" htmlFor="document_type_id">
+              Document Type <span className="text-danger">*</span>
+            </label>
+            <select
+              id="document_type_id"
+              className="form-select"
+              value={typeId}
+              onChange={(event) => setTypeId(event.target.value)}
+              required
+            >
+              <option value="">Select…</option>
+              {documentTypes.map((type) => (
+                <option key={type.id} value={type.id} data-code={type.code}>
+                  {type.name}
+                  {type.is_optional ? " (optional)" : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {!isDtr && (
           <div className="col-md-4">
