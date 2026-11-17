@@ -415,6 +415,41 @@ Machine note: `php.ini` was edited for this measurement and a backup kept at
 `C:\xampp\php\php.ini.bak-loadtest`. To revert OPcache, restore that file and
 restart Apache. `php artisan config:cache` was cleared again afterwards.
 
+### Target re-run with file-based sessions/cache (20 VUs)
+
+`SESSION_DRIVER=file` and `CACHE_STORE=file` (tested as a stand-in for Redis,
+which is not installed on this machine: no server and no `phpredis` extension).
+Everything else identical to the OPcache run.
+
+| Metric | DB sessions/cache | **File sessions/cache** | Change |
+|---|---|---|---|
+| Requests | 7,466 | **7,598** | +1.8 % |
+| Throughput | 24.69 req/s | **25.07 req/s** | +1.5 % |
+| Iterations | 1,241 | **1,263** | +1.8 % |
+| Failed requests | 0.00 % | **0.00 %** | - |
+| Response avg | 66 ms | **49 ms** | 26 % faster |
+| p(95) | 147 ms | **93 ms** | 37 % faster |
+| p(99) | 513 ms | **181 ms** | 65 % faster |
+| Checks / auth fails / renewals | 100 % / 0 / 0 | **100 % / 0 / 0** | - |
+| Thresholds | passed | **passed (exit 0)** | - |
+
+Per endpoint (requests, avg, p95): login 20 / 390 / 444 ms, auth/user 1,243 /
+43 / 81 ms, dashboard 2,526 / 51 / 93 ms, interns list 2,526 / 51 / 97 ms,
+search 2,526 / 51 / 95 ms, details 2,526 / 47 / 86 ms, batch 2,526 / 49 / 90 ms.
+
+**Conclusion:** with OPcache enabled, the DB-backed session/cache store was the
+next measurable cost: every request reads (and often writes) a `sessions` /
+`cache` row. Moving it off the database cut p95 by 37 % and p99 by 65 % at the
+same load. For production, **Redis** is the recommended store (shared across
+nodes, no per-request disk/DB write); `file` works for a single node and is what
+was measured here. No further tuning was needed to pass the 20-user target.
+
+**State after this experiment:** `.env` restored to `SESSION_DRIVER=database`,
+`CACHE_STORE=database`; `php artisan optimize:clear` run. The only persistent
+change left from tuning is OPcache in `php.ini` (backup:
+`C:\xampp\php\php.ini.bak-loadtest`); `APP_DEBUG` was already `false` in this
+repo, so the planned "production-like" run was skipped as low-impact.
+
 ## 10. Safety compliance
 
 - Read-only requests only; no beneficiary/intern/document records are modified.
