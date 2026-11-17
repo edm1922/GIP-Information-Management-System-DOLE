@@ -369,11 +369,10 @@ above the 1.5 s threshold (2.3 s) because `http_req_waiting` still accounts for
 almost all latency - per-request server time, with opcache disabled (XAMPP
 default), DB-backed sessions/cache and the dashboard aggregates in the path.
 
-Next tuning steps, in expected-impact order: enable OPcache in `php.ini`
-(`zend_extension=opcache`, `opcache.enable=1`) and restart Apache; run with
-`APP_DEBUG=false`/`APP_ENV=production`-like config; then profile the dashboard
+The OPcache step was executed after this run (see next subsection). Remaining
+options: `APP_DEBUG=false`/production-like config, profiling the dashboard
 aggregate queries (indexes on `interns.status`, `contract_end_date`,
-`partner_agency_id`) and move sessions/cache to Redis.
+`partner_agency_id`) and moving sessions/cache to Redis.
 
 Reproducing this run: append `localhost` to `SANCTUM_STATEFUL_DOMAINS` in `.env`
 (already done here), `php artisan config:cache`, then
@@ -384,6 +383,37 @@ powershell -ExecutionPolicy Bypass -File .\load-testing\scripts\run.ps1 `
 ```
 
 `php artisan optimize:clear` restores plain dev behaviour afterwards.
+
+### Target re-run with OPcache (20 VUs, same profile)
+
+`php.ini`: `zend_extension=opcache` and `opcache.enable=1`, Apache restarted,
+`php artisan config:cache` re-applied. Same accounts/workflow.
+
+| Metric | artisan serve | Apache | **Apache + OPcache** |
+|---|---|---|---|
+| Requests | 791 | 2,738 | **7,466** |
+| Throughput | 2.56 req/s | 9.02 req/s | **24.69 req/s** |
+| Iterations | 118 | 452 | **1,241** |
+| Failed requests | 0.00 % | 0.00 % | **0.00 %** |
+| Response avg | 6,391 ms | 1,331 ms | **66 ms** |
+| p(95) | 7,809 ms | 2,346 ms | **147 ms** |
+| p(99) | 8,404 ms | 3,052 ms | **513 ms** |
+| Checks / auth failures / renewals | 100 % / 0 / 0 | 100 % / 0 / 0 | **100 % / 0 / 0** |
+| Threshold result | crossed | crossed | **PASSED (exit 0)** |
+
+Per endpoint (requests, avg, p95): login 20 / 438 / 707 ms, auth/user 1221 / 99 /
+425 ms, dashboard 2482 / 65 / 149 ms, interns list 2482 / 61 / 128 ms, search
+2482 / 60 / 122 ms, details 2482 / 50 / 99 ms, batch list 2482 / 53 / 102 ms.
+
+**Conclusion:** OPcache was the dominant factor - throughput rose from 2.56 to
+24.69 req/s (9.6x vs the CLI server, 2.7x vs Apache alone) and p95 fell from
+7,809 ms to 147 ms (53x). The 20-user target now passes every threshold with
+zero errors, and the remaining slowest path is `POST /api/v1/auth/login`
+(438 ms avg) because of bcrypt hashing - expected, not a regression.
+
+Machine note: `php.ini` was edited for this measurement and a backup kept at
+`C:\xampp\php\php.ini.bak-loadtest`. To revert OPcache, restore that file and
+restart Apache. `php artisan config:cache` was cleared again afterwards.
 
 ## 10. Safety compliance
 
