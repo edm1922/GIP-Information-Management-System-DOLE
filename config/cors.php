@@ -30,7 +30,9 @@ return [
 
     'allowed_headers' => ['*'],
 
-    'exposed_headers' => [],
+    // The SPA saves CSV exports from a fetched blob, so it has to be able to
+    // read the server's timestamped filename across origins.
+    'exposed_headers' => ['Content-Disposition'],
 
     'max_age' => 0,
 

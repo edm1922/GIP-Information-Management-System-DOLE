@@ -90,7 +90,7 @@
 ### 4.2 Notifications
 | Endpoint | Methods | Existing source | AuthZ / status |
 |---|---|---|---|
-| `/api/v1/notifications` | GET | `NotificationController@index` | **Implemented (`auth`).** Paginated JSON. |
+| `/api/v1/notifications` | GET | `NotificationController@index` | **Implemented (`auth`).** Paginated JSON plus a top-level `unread_count` for the SPA badge. |
 | `/api/v1/notifications/{id}/read` | POST | `markAsRead` | **Implemented (`auth` + ownership).** Logs read action and returns resolved target URL when available. |
 | `/api/v1/notifications/mark-all-read` | POST | `markAllAsRead` | **Implemented (`auth`).** Returns affected count and logs when applicable. |
 
@@ -183,6 +183,7 @@
 - Centralize API client with credentialed requests, CSRF handling, 401/419 recovery, and forced-password-change interception.
 - Server Components/Route Handlers in Next.js must not become a second business-logic or authorization layer for protected GIMS operations.
 - Preserve user-facing paths where practical; map page data needs to the above endpoints during per-page migration.
+- Private document previews/downloads are fetched with `credentials: "include"` and rendered from a blob URL. An `<iframe>`/`<img>` pointed at the API origin would not send Sanctum's `SameSite=Lax` session cookie when the SPA and API are on different hosts.
 
 ---
 
@@ -192,7 +193,7 @@
 2. ✅ **Completed:** Forced-password-change is enforced server-side for API requests.
 3. ✅ **Completed:** API feature tests covering stateful login/logout, 401/403/422 handling, forced password change, login throttling, JSON error rendering, intern CRUD/archive/restore, DTR upload/approval hours accounting, document preview/download ownership, settings guards/document-type updates, dashboard role payloads, self-service tabs, CSV exports, audit-log access.
 4. ✅ **Completed:** Explicit `App\Http\Resources\V1\*` contract (storage internals hidden, computed Blade parity fields, conditional eager-load-gated fields), group rate limiting (`throttle:120,1`), and live CSRF/session/419 verification via `scripts/verify-api-csrf.ps1`.
-5. ⏳ **Pending:** Browser-level session-expiry/419 UX in the real frontend plus per-page UI parity checks (Phase 2+).
+5. 🟡 **In progress (Phase 3):** Next.js frontend under `frontend/` now covers every authenticated Blade screen — scaffold, Sanctum-aware API client, auth/force-password flows, role-aware shell, dashboard, interns (list/detail/create/edit/archive), intern documents (review list, folder browser, intern folder), intern self-service (DTR + 201 Files with the structured working-day picker), reports + CSV exports, audit log, settings (users/partners/document types via modal flows), profile and notifications. Local CORS/Sanctum wiring is verified by `frontend/scripts/check-local-api.mjs`; `tsc`, `next build` and route smoke tests pass. An authenticated browser walkthrough as admin covered every route (no console errors), the four CSV exports, settings create/delete for users and partner agencies, profile and password changes, and document previews. Remaining before Phase 4: intern/PESO-manager role walkthroughs, upload/approve/reject interactions, and visual parity sign-off; production wiring (Vercel domain + Sanctum/CORS/session env) is documented but not yet exercised.
 6. ⏳ **Pending (approval-gated):** DB/config steps such as running the Sanctum `personal_access_tokens` migration only after verified backup and explicit approval.
 7. 🔒 **Unchanged:** Blade/web routes remain operational until acceptance and cutover.
 

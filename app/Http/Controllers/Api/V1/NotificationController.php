@@ -17,7 +17,12 @@ class NotificationController extends Controller
             ->latest()
             ->paginate(20);
 
-        return NotificationResource::collection($notifications)->response();
+        // `unread_count` powers the SPA topbar badge without a second request;
+        // it is not derivable from the paginated page alone.
+        $payload = NotificationResource::collection($notifications)->response()->getData(true);
+        $payload['unread_count'] = $request->user()->unreadNotifications()->count();
+
+        return response()->json($payload);
     }
 
     public function markAsRead(Request $request, string $id): JsonResponse
