@@ -363,3 +363,20 @@ a {
     transition: none;
   }
 }
+
+/*
+ * Topbar user menu alignment.
+ *
+ * The Blade topbar opens this menu through Bootstrap's dropdown JavaScript,
+ * and Bootstrap only right-aligns `.dropdown-menu-end` when its JS has added
+ * the `[data-bs-popper]` attribute. The SPA toggles the same menu from React
+ * state and never loads that JS, so the menu fell back to `left: 0` and hung
+ * off the right edge of the viewport (worse the narrower the window).
+ * Anchor it to the trigger's right edge instead — the wrapper is
+ * position: relative, so the menu now opens leftwards and stays on screen.
+ */
+.topbar .topbar__user-dropdown > .dropdown-menu {
+  right: 0;
+  left: auto;
+  max-width: calc(100vw - 1rem);
+}
