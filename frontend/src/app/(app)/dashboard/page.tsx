@@ -4,8 +4,12 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
+import { useDocumentDownload, useDocumentPreview } from "@/components/documents/DocumentPreview";
+import { WorkCalendar } from "@/components/intern/WorkCalendar";
 import { ApiError, api } from "@/lib/api";
-import type { DashboardResponse } from "@/lib/types";
+import { useAuth } from "@/lib/auth";
+import { formatNumber, reviewBadgeClass, ucfirst } from "@/lib/format";
+import type { DashboardResponse, InternDocument } from "@/lib/types";
 
 const brandName = process.env.NEXT_PUBLIC_BRAND_NAME ?? "GIP Information Management System (GIMS)";
 
@@ -37,24 +41,34 @@ const STAT_CARDS = [
   },
 ] as const;
 
+function internStatusBadgeClass(status: string | null | undefined): string {
+  if (status === "active") return "bg-success";
+  if (status === "completed") return "bg-info";
+  return "bg-secondary";
+}
+
 export default function DashboardPage() {
+  const { open: openDocument } = useDocumentPreview();
+  const downloadDocument = useDocumentDownload();
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [year, setYear] = useState(new Date().getFullYear());
   const [calDate, setCalDate] = useState<string | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [workMonth, setWorkMonth] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
     try {
       const params = new URLSearchParams({ year: String(year) });
       if (calDate) params.set("cal_date", calDate);
+      if (workMonth) params.set("work_month", workMonth);
       const payload = await api.get<DashboardResponse>(`/api/v1/dashboard?${params.toString()}`);
       setData(payload);
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : "Unable to load the dashboard.");
     }
-  }, [year, calDate]);
+  }, [year, calDate, workMonth]);
 
   useEffect(() => {
     load();
@@ -262,156 +276,7 @@ export default function DashboardPage() {
       ) : data.is_intern_user ? (
         <div className="row g-4">
           {data.intern_self ? (
-            <>
-              <div className="col-12">
-                <div
-                  className="card shadow-sm border-0"
-                  style={{
-                    background: "linear-gradient(135deg, #1E429B 0%, #2563eb 100%)",
-                    color: "#fff",
-                    borderRadius: 12,
-                  }}
-                >
-                  <div className="card-body p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
-                    <div>
-                      <div className="d-flex align-items-center gap-2 mb-2">
-                        <span className="badge bg-white text-primary fw-bold px-2 py-1">Intern Portal</span>
-                        <span className="badge bg-success">
-                          <i className="fas fa-circle me-1" style={{ fontSize: "0.5rem", verticalAlign: "middle" }} />
-                          {data.intern_self.status ?? "active"}
-                        </span>
-                      </div>
-                      <h2 className="h4 fw-bold mb-1 text-white">Welcome back, {data.intern_self.name}!</h2>
-                      <p className="mb-0 text-white-50 small">
-                        <i className="fas fa-building me-1" /> {data.intern_self.partner_agency?.name ?? "Partner Agency: Not Assigned"}
-                      </p>
-                    </div>
-                    <Link href="/my-internship" className="btn btn-light fw-semibold text-primary shadow-sm">
-                      <i className="fas fa-file-upload me-1" /> Daily Time Record
-                    </Link>
-                  </div>
-                </div>
-              </div>
-
-              <div className="col-12">
-                <div className="stat-cards-frame">
-                  <div className="row g-3">
-                    <div className="col-sm-6 col-xl-3">
-                      <div className="stat-card h-100 p-3">
-                        <div className="d-flex justify-content-between align-items-start mb-2">
-                          <span className="stat-title">Hours Rendered</span>
-                          <div className="stat-icon-circle" style={{ background: "rgba(30, 66, 155, 0.1)", color: "#1E429B" }}>
-                            <i className="fas fa-clock" />
-                          </div>
-                        </div>
-                        <div className="stat-value-large mb-1">
-                          {data.intern_self.rendered_hours ?? 0}{" "}
-                          <span className="text-muted fw-normal" style={{ fontSize: "0.9rem" }}>
-                            / {data.intern_self.required_hours ?? 0} hrs
-                          </span>
-                        </div>
-                        <div className="progress mb-1" style={{ height: 6 }}>
-                          <div
-                            className="progress-bar bg-primary"
-                            role="progressbar"
-                            style={{ width: `${Math.min(100, data.intern_self.progress_percent ?? 0)}%` }}
-                          />
-                        </div>
-                        <div className="d-flex justify-content-between text-muted" style={{ fontSize: "0.75rem" }}>
-                          <span>Progress</span>
-                          <span className="fw-bold text-primary">{data.intern_self.progress_percent ?? 0}%</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="col-sm-6 col-xl-3">
-                      <div className="stat-card h-100 p-3">
-                        <div className="d-flex justify-content-between align-items-start mb-2">
-                          <span className="stat-title">Days Remaining</span>
-                          <div className="stat-icon-circle" style={{ background: "rgba(245, 158, 11, 0.15)", color: "#d97706" }}>
-                            <i className="fas fa-hourglass-half" />
-                          </div>
-                        </div>
-                        <div className="stat-value-large mb-1">{data.intern_self.days_remaining ?? "—"}</div>
-                      </div>
-                    </div>
-
-                    {(
-                      [
-                        ["total_docs", "Total Documents", "fa-folder-open"],
-                        ["approved_docs", "Approved", "fa-check-circle"],
-                        ["pending_docs", "Pending Review", "fa-clock"],
-                        ["rejected_docs", "Rejected", "fa-times-circle"],
-                      ] as const
-                    ).map(([key, label, icon]) => (
-                      <div key={key} className="col-sm-6 col-xl-3">
-                        <div className="stat-card h-100 p-3">
-                          <div className="d-flex justify-content-between align-items-start mb-2">
-                            <span className="stat-title">{label}</span>
-                            <div className="stat-icon-circle">
-                              <i className={`fas ${icon}`} />
-                            </div>
-                          </div>
-                          <div className="stat-value-large mb-1">{data.intern_stats[key]}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="col-12">
-                <div className="graph-container">
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <h3 className="dashboard-section-title mb-0">
-                      <i className="fas fa-file-signature" style={{ color: "var(--company-primary)" }} /> Recent Documents
-                    </h3>
-                    <Link href="/my-internship/201-files" className="small fw-semibold">
-                      View all documents in 201 Files →
-                    </Link>
-                  </div>
-
-                  {data.intern_documents.length === 0 ? (
-                    <p className="text-muted small mb-0">No documents uploaded yet.</p>
-                  ) : (
-                    <div className="table-responsive">
-                      <table className="table table-sm align-middle mb-0">
-                        <thead>
-                          <tr>
-                            <th>Document</th>
-                            <th>Status</th>
-                            <th className="text-end">Uploaded</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {data.intern_documents.map((document) => (
-                            <tr key={document.id}>
-                              <td className="fw-semibold">
-                                {document.document_type?.name ?? document.title ?? `Document #${document.id}`}
-                              </td>
-                              <td>
-                                <span
-                                  className={`badge text-capitalize ${
-                                    document.review_status === "approved"
-                                      ? "bg-success"
-                                      : document.review_status === "rejected"
-                                        ? "bg-danger"
-                                        : "bg-warning text-dark"
-                                  }`}
-                                >
-                                  {document.review_status.replace("_", " ")}
-                                </span>
-                              </td>
-                              <td className="text-end">{formatDate(document.created_at)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </>
+            <InternPortalDashboard data={data} onWorkMonthChange={setWorkMonth} onPreview={openDocument} onDownload={downloadDocument} />
           ) : (
             <div className="col-12">
               <div className="card shadow-sm border-0 mt-2">
@@ -440,6 +305,354 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+/**
+ * Intern self-service dashboard — mirrors the `$isInternUser` branch of
+ * `resources/views/dashboard.blade.php`: welcome banner, four stat cards, the
+ * work calendar from the claimed DTR days, and the five most recent documents.
+ */
+function InternPortalDashboard({
+  data,
+  onWorkMonthChange,
+  onPreview,
+  onDownload,
+}: {
+  data: DashboardResponse;
+  onWorkMonthChange: (month: string) => void;
+  onPreview: (document: InternDocument) => void;
+  onDownload: (document: InternDocument) => void;
+}) {
+  const { user } = useAuth();
+  const intern = data.intern_self;
+  if (!intern) return null;
+
+  const hoursRemaining = Number(intern.hours_remaining ?? 0);
+  const wholeDays = Math.floor(Number(intern.days_remaining_from_hours ?? 0));
+  const leftoverHours = Math.round((hoursRemaining - wholeDays * 8) * 10) / 10;
+  const expiringSoon =
+    intern.days_remaining !== null && intern.days_remaining !== undefined && intern.days_remaining >= 0 && intern.days_remaining <= 7;
+  const contractMonths = intern.contract_months;
+
+  return (
+    <>
+      {/* Welcome banner */}
+      <div className="col-12">
+        <div
+          className="card shadow-sm border-0"
+          style={{
+            background: "linear-gradient(135deg, #1E429B 0%, #2563eb 100%)",
+            color: "#fff",
+            borderRadius: 12,
+          }}
+        >
+          <div className="card-body p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div>
+              <div className="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                <span className="badge bg-white text-primary fw-bold px-2 py-1">Intern Portal</span>
+                <span className={`badge ${internStatusBadgeClass(intern.status)}`}>
+                  <i className="fas fa-circle me-1" style={{ fontSize: "0.5rem", verticalAlign: "middle" }} />{" "}
+                  {ucfirst(intern.status)}
+                </span>
+                {expiringSoon && (
+                  <span className="badge bg-warning text-dark">
+                    <i className="fas fa-exclamation-triangle me-1" /> Ends in {intern.days_remaining}d
+                  </span>
+                )}
+              </div>
+              <h2 className="h4 fw-bold mb-1 text-white">Welcome back, {intern.name}!</h2>
+              <p className="mb-0 text-white-50 small">
+                <i className="fas fa-building me-1" /> {intern.partner_agency?.name ?? "Partner Agency: Not Assigned"}
+                {intern.supervisor && (
+                  <>
+                    {" "}
+                    &bull; <i className="fas fa-user-tie ms-2 me-1" /> Supervisor: {intern.supervisor}
+                  </>
+                )}
+              </p>
+            </div>
+            <div>
+              <Link href="/my-internship" className="btn btn-light fw-semibold text-primary shadow-sm">
+                <i className="fas fa-file-upload me-1" /> Daily Time Record
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Stat cards */}
+      <div className="col-12">
+        <div className="stat-cards-frame">
+          <div className="row g-3">
+            <div className="col-sm-6 col-xl-3">
+              <div className="stat-card h-100 p-3">
+                <div className="d-flex justify-content-between align-items-start mb-2">
+                  <span className="stat-title">Hours Rendered</span>
+                  <div className="stat-icon-circle" style={{ background: "rgba(30, 66, 155, 0.1)", color: "#1E429B" }}>
+                    <i className="fas fa-clock" />
+                  </div>
+                </div>
+                <div className="stat-value-large mb-1">
+                  {formatNumber(intern.rendered_hours)}{" "}
+                  <span className="text-muted fw-normal" style={{ fontSize: "0.9rem" }}>
+                    / {formatNumber(intern.required_hours)} hrs
+                  </span>
+                </div>
+                <div className="progress mb-1" style={{ height: 6 }}>
+                  <div
+                    className="progress-bar bg-primary"
+                    role="progressbar"
+                    style={{ width: `${Math.min(100, Number(intern.progress_percent ?? 0))}%` }}
+                  />
+                </div>
+                <div className="d-flex justify-content-between text-muted" style={{ fontSize: "0.75rem" }}>
+                  <span>Progress</span>
+                  <span className="fw-bold text-primary">{formatNumber(intern.progress_percent)}%</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-sm-6 col-xl-3">
+              <div className="stat-card h-100 p-3">
+                <div className="d-flex justify-content-between align-items-start mb-2">
+                  <span className="stat-title">Days Remaining</span>
+                  <div className="stat-icon-circle" style={{ background: "rgba(245, 158, 11, 0.15)", color: "#d97706" }}>
+                    <i className="fas fa-hourglass-half" />
+                  </div>
+                </div>
+                <div className="stat-value-large mb-1">
+                  {hoursRemaining <= 0 ? (
+                    <>
+                      0 <span className="text-muted fw-normal" style={{ fontSize: "0.9rem" }}>days</span>
+                    </>
+                  ) : (
+                    <>
+                      {wholeDays}
+                      <span className="text-muted fw-normal" style={{ fontSize: "0.9rem" }}>
+                        {" "}
+                        day{wholeDays === 1 ? "" : "s"}
+                      </span>
+                      {leftoverHours > 0 && (
+                        <span className="text-muted fw-normal" style={{ fontSize: "0.8rem" }}>
+                          {" "}
+                          {formatNumber(leftoverHours)}h
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+                <div className="text-muted" style={{ fontSize: "0.75rem" }}>
+                  {hoursRemaining <= 0 ? (
+                    <span className="text-success fw-semibold">
+                      <i className="fas fa-check-circle me-1" /> Target achieved
+                    </span>
+                  ) : (
+                    <>{formatNumber(hoursRemaining)} hrs &bull; 8-hr working day basis</>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="col-sm-6 col-xl-3">
+              <div className="stat-card h-100 p-3">
+                <div className="d-flex justify-content-between align-items-start mb-2">
+                  <span className="stat-title">Contract Period</span>
+                  <div className="stat-icon-circle" style={{ background: "rgba(16, 185, 129, 0.12)", color: "#059669" }}>
+                    <i className="fas fa-calendar-check" />
+                  </div>
+                </div>
+                <div className="stat-value-large mb-1" style={{ fontSize: "1.25rem" }}>
+                  {contractMonths !== null && contractMonths !== undefined ? (
+                    <>
+                      {formatNumber(contractMonths)}{" "}
+                      <span className="text-muted fw-normal" style={{ fontSize: "0.85rem" }}>
+                        month{Number(contractMonths) !== 1 ? "s" : ""}
+                      </span>
+                    </>
+                  ) : (
+                    "—"
+                  )}
+                </div>
+                <div className="text-muted" style={{ fontSize: "0.75rem" }}>
+                  {intern.contract_start_date && intern.contract_end_date ? (
+                    <>
+                      {formatDate(intern.contract_start_date)} &ndash; {formatDate(intern.contract_end_date)}
+                    </>
+                  ) : intern.contract_end_date ? (
+                    <>Ends {formatDate(intern.contract_end_date)}</>
+                  ) : (
+                    <>No dates set</>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="col-sm-6 col-xl-3">
+              <div className="stat-card h-100 p-3">
+                <div className="d-flex justify-content-between align-items-start mb-2">
+                  <span className="stat-title">Submitted Documents</span>
+                  <div className="stat-icon-circle" style={{ background: "rgba(99, 102, 241, 0.12)", color: "#6366f1" }}>
+                    <i className="fas fa-file-invoice" />
+                  </div>
+                </div>
+                <div className="stat-value-large mb-1">
+                  {data.intern_stats.total_docs}{" "}
+                  <span className="text-muted fw-normal" style={{ fontSize: "0.85rem" }}>files</span>
+                </div>
+                <div className="d-flex gap-2 flex-wrap" style={{ fontSize: "0.72rem" }}>
+                  <span className="text-success fw-semibold">{data.intern_stats.approved_docs} approved</span>
+                  &bull;
+                  <span className="text-warning fw-semibold">{data.intern_stats.pending_docs} pending</span>
+                  {data.intern_stats.rejected_docs > 0 && (
+                    <>
+                      &bull;
+                      <span className="text-danger fw-semibold">{data.intern_stats.rejected_docs} rejected</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Work calendar: days claimed on submitted DTRs */}
+      {data.work_calendar && (
+        <div className="col-12">
+          <WorkCalendar calendar={data.work_calendar} onMonthChange={onWorkMonthChange} />
+        </div>
+      )}
+
+      {/* Recent documents */}
+      <div className="col-lg-8">
+        <div className="graph-container">
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h3 className="dashboard-section-title mb-0">
+              <i className="fas fa-file-alt" style={{ color: "var(--company-primary)" }} /> Recent Submitted Documents
+            </h3>
+            <Link href="/my-internship" className="btn btn-sm btn-outline-primary">
+              <i className="fas fa-plus me-1" /> Submit New
+            </Link>
+          </div>
+
+          {data.intern_documents.length === 0 ? (
+            <div className="text-center py-4 text-muted">
+              <i className="fas fa-folder-open fa-2x mb-2 text-muted opacity-50" />
+              <p className="mb-2 small">You haven&apos;t submitted any internship documents yet.</p>
+              <Link href="/my-internship" className="btn btn-sm btn-brand">
+                Go to Daily Time Record to Upload
+              </Link>
+            </div>
+          ) : (
+            <>
+              <div className="table-responsive">
+              <table className="table table-sm align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Document Type</th>
+                    <th>Period</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th className="text-end">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.intern_documents.map((document) => (
+                    <tr key={document.id}>
+                      <td className="fw-semibold">
+                        <button
+                          type="button"
+                          className="btn btn-link p-0 text-start text-decoration-none text-dark"
+                          title="Click to view inside system"
+                          onClick={() => onPreview(document)}
+                        >
+                          <i className="far fa-file-alt text-primary me-1" />
+                          {document.document_type?.name ?? "Document"}
+                        </button>
+                        <span className="d-block text-muted" style={{ fontSize: "0.72rem" }}>
+                          {document.original_filename}
+                        </span>
+                      </td>
+                      <td className="text-muted small">
+                        {document.dtr_summary ?? document.document_period ?? "—"}
+                      </td>
+                      <td className="text-muted small">{formatDate(document.created_at)}</td>
+                      <td>
+                        <span className={`badge ${reviewBadgeClass(document.review_status)}`}>
+                          {ucfirst(document.review_status)}
+                        </span>
+                      </td>
+                      <td className="text-end text-nowrap">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-primary"
+                          title="View in System"
+                          onClick={() => onPreview(document)}
+                        >
+                          <i className="fas fa-eye" />
+                        </button>{" "}
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-secondary"
+                          title="Download"
+                          onClick={() => onDownload(document)}
+                        >
+                          <i className="fas fa-download" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              </div>
+              <div className="mt-3 text-end">
+                <Link href="/my-internship/201-files" className="small text-decoration-none fw-semibold">
+                  View all documents in 201 Files &rarr;
+                </Link>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="col-lg-4">
+        <div className="graph-container">
+          <h3 className="dashboard-section-title mb-3">
+            <i className="fas fa-info-circle" style={{ color: "var(--company-primary)" }} /> Internship Details
+          </h3>
+          <ul className="list-unstyled mb-3" style={{ fontSize: "0.85rem" }}>
+            <li className="mb-2 pb-2 border-bottom">
+              <span className="text-muted d-block small">Partner Agency:</span>
+              <strong className="text-dark">{intern.partner_agency?.name ?? "—"}</strong>
+            </li>
+            <li className="mb-2 pb-2 border-bottom">
+              <span className="text-muted d-block small">Agency Coordinator / Supervisor:</span>
+              <strong className="text-dark">{intern.supervisor ?? "—"}</strong>
+            </li>
+            <li className="mb-2 pb-2 border-bottom">
+              <span className="text-muted d-block small">Contract Duration:</span>
+              <strong className="text-dark">
+                {formatDate(intern.contract_start_date)} &ndash; {formatDate(intern.contract_end_date)}
+              </strong>
+            </li>
+            <li className="mb-0">
+              <span className="text-muted d-block small">Account Username:</span>
+              <strong className="text-dark">{user?.username ?? "—"}</strong>
+            </li>
+          </ul>
+
+          <div className="p-3 bg-light rounded-3 border">
+            <h6 className="fw-bold mb-1 small text-dark">
+              <i className="fas fa-lightbulb text-warning me-1" /> Quick Tip
+            </h6>
+            <p className="mb-0 text-muted" style={{ fontSize: "0.78rem" }}>
+              Ensure your Daily Time Record (DTR) and monthly internship reports are signed before uploading.
+            </p>
+          </div>
+        </div>
+      </div>
     </>
   );
 }

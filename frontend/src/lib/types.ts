@@ -35,6 +35,41 @@ export interface DashboardCalendar {
   year: number | string;
 }
 
+/** A day cell from `InternWorkCalendar::month()` (partials/intern-work-calendar.blade.php). */
+export interface WorkCalendarCell {
+  date: string;
+  day: number;
+  in_month: boolean;
+  weekend: boolean;
+  today: boolean;
+  /** `null` when the intern claimed nothing that day. */
+  status: "approved" | "pending" | "rejected" | null;
+  hours: number;
+  in_contract: boolean;
+  documents: Array<{
+    id: number;
+    type: string | null;
+    name: string | null;
+    status: string | null;
+    hours: number;
+  }>;
+}
+
+export interface WorkCalendar {
+  /** `YYYY-MM` of the displayed month. */
+  month: string;
+  /** `November 2026`. */
+  label: string;
+  prev_month: string;
+  next_month: string;
+  cells: WorkCalendarCell[];
+  stats: {
+    working_days: number;
+    covered_days: number;
+    hours: number;
+  };
+}
+
 export interface InternStatusRow {
   status: string;
   count: number;
@@ -177,14 +212,15 @@ export interface DashboardResponse {
   show_intern_stats: boolean;
   is_intern_user: boolean;
   intern_self: InternSummary | null;
-  intern_documents: InternDocumentSummary[];
+  intern_documents: InternDocument[];
   intern_stats: {
     total_docs: number;
     approved_docs: number;
     pending_docs: number;
     rejected_docs: number;
   };
-  work_calendar: unknown;
+  /** Only present for intern accounts that have an internship record. */
+  work_calendar: WorkCalendar | null;
   total_interns: number;
   active_interns: number;
   inactive_interns: number;
