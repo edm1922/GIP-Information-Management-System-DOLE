@@ -18,7 +18,19 @@ import { filenameFromDisposition } from "@/lib/files";
  * Local development instead sets `NEXT_PUBLIC_API_URL=http://localhost:8000`
  * in `.env.local`; use `localhost` (not 127.0.0.1) so the two are same-site.
  */
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").trim().replace(/\/+$/, "");
+const rawApiUrl = (process.env.NEXT_PUBLIC_API_URL ?? "").trim();
+
+/**
+ * Placeholder values people type into a hosting dashboard while switching a
+ * variable off ("unset", "none", …). Treat them as absent: a literal
+ * `unset/api/v1/...` request silently 404s against the app's own origin.
+ * Remove the variable instead of setting it to one of these.
+ */
+const PLACEHOLDER_ENV_VALUES = new Set(["", "unset", "undefined", "null", "none", "false"]);
+
+export const API_URL = (
+  PLACEHOLDER_ENV_VALUES.has(rawApiUrl.toLowerCase()) ? "" : rawApiUrl
+).replace(/\/+$/, "");
 
 export class ApiError extends Error {
   status: number;
