@@ -296,17 +296,16 @@ powershell -ExecutionPolicy Bypass -File .\load-testing\scripts\run.ps1 -Script 
 
 ---
 
-## 9. Baseline from the verification run (smoke, 1 VU)
+## 9. Baseline runs on this machine
 
-Latest smoke result on this machine (`php artisan serve`, local MySQL):
+### Smoke (1 VU, 30 s)
 
 | Metric | Value |
 |---|---|
-| Requests | 31 over 30 s (0.91 req/s) |
+| Requests | 31 (0.91 req/s) |
 | Iterations | 5 |
 | Failed requests | 0.00 % |
-| Response avg | 373 ms |
-| p(95) / p(99) | 420 ms / 618 ms |
+| Response avg / p(95) / p(99) | 373 ms / 420 ms / 618 ms |
 | Checks | 100 % |
 | Auth failures | 0 |
 
@@ -314,10 +313,34 @@ Per endpoint (avg / p95): login 697/697 ms, auth/user 385/431 ms, dashboard
 366/393 ms, interns list 368/376 ms, search 369/377 ms, details 344/350 ms,
 batch list 357/366 ms.
 
-This is a smoke baseline only; it says nothing about 20-user capacity.
+### Target (20 VUs: 30 s ramp, 4 min hold, 30 s ramp-down)
 
----
+| Metric | Value |
+|---|---|
+| Requests | 791 (2.56 req/s) |
+| Iterations | 118 completed (17 interrupted at ramp-down) |
+| Failed requests | 0.00 % (0 of 791) |
+| Response avg / p(95) / p(99) | 6391 ms / 7809 ms / 8404 ms |
+| Checks | 100 % |
+| Auth failures / session renewals | 0 / 0 |
 
+Per endpoint (requests, avg, p95): login 20 / 5044 / 8548 ms, auth/user 115 /
+6490 / 7555 ms, dashboard 268 / 6319 / 7615 ms, interns list 262 / 6482 /
+7647 ms, search 256 / 6547 / 7550 ms, details 244 / 6591 / 7607 ms, batch list
+242 / 6525 / 7616 ms.
+
+**Interpretation:** the backend stayed correct (no errors, no auth failures,
+100 % checks) but saturated at ~2.56 req/s. Since `http_req_waiting` is
+effectively the whole duration (client connect/blocked time is ~1 ms), the
+latency is server-side queueing, not networking. 2.56 req/s matches roughly
+`1 / 390 ms` - the per-request service time seen in the smoke run - which is the
+signature of the **single-threaded `php artisan serve`** process: 20 concurrent
+readers simply queue behind one PHP worker. Thresholds on latency were
+therefore crossed, as expected.
+
+Re-run the same profile behind Apache/PHP-FPM (and with config/routes cached)
+before drawing any conclusion about the application code itself; that is the
+apples-to-apples comparison for the target scenario.
 ## 10. Safety compliance
 
 - Read-only requests only; no beneficiary/intern/document records are modified.
