@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { DocumentPreviewProvider } from "@/components/documents/DocumentPreview";
@@ -11,7 +11,14 @@ import { useAuth } from "@/lib/auth";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { status, user } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Close the drawer after navigating: the Blade layout reloaded the page which
+  // dismissed it for free, a client-side push keeps the component mounted.
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (status === "guest") {

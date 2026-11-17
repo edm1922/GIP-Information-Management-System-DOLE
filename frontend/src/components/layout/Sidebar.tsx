@@ -39,7 +39,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
       />
 
       <div
-        className={`sidebar-drawer d-flex flex-column ${open ? "show" : ""}`}
+        className={`sidebar-drawer d-flex flex-column ${open ? "open" : ""}`}
         id="sidebar-drawer"
         style={{ overflowY: "hidden" }}
       >
