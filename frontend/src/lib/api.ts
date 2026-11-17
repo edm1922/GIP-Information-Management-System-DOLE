@@ -9,11 +9,16 @@
 import { filenameFromDisposition } from "@/lib/files";
 
 /**
- * Default to `localhost` (not 127.0.0.1) so the SPA on localhost:3000 and the
- * API on localhost:8000 are same-site: Sanctum's SameSite=Lax session cookie
- * is then sent by the browser instead of being dropped as third-party.
+ * Origin the API lives on. Empty means "this origin", which is the deployed
+ * mode: `next.config.ts` rewrites `/api/v1/*` and `/sanctum/csrf-cookie` to
+ * `API_PROXY_TARGET` so the SPA and API stay same-site and the Sanctum session
+ * cookie remains first-party (cross-site cookies are not sent, and
+ * `document.cookie` cannot read another domain's `XSRF-TOKEN`).
+ *
+ * Local development instead sets `NEXT_PUBLIC_API_URL=http://localhost:8000`
+ * in `.env.local`; use `localhost` (not 127.0.0.1) so the two are same-site.
  */
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/+$/, "");
+export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").trim().replace(/\/+$/, "");
 
 export class ApiError extends Error {
   status: number;
