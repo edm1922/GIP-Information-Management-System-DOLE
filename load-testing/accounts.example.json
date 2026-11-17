@@ -1,0 +1,26 @@
+{
+  "generated_at": "2026-11-17T00:00:00+08:00",
+  "note": "Example only. Generate real test accounts with provision/provision-test-accounts.php (writes accounts.json, which is gitignored).",
+  "accounts": [
+    { "username": "loadtest01", "password": "replace-me-01" },
+    { "username": "loadtest02", "password": "replace-me-02" },
+    { "username": "loadtest03", "password": "replace-me-03" },
+    { "username": "loadtest04", "password": "replace-me-04" },
+    { "username": "loadtest05", "password": "replace-me-05" },
+    { "username": "loadtest06", "password": "replace-me-06" },
+    { "username": "loadtest07", "password": "replace-me-07" },
+    { "username": "loadtest08", "password": "replace-me-08" },
+    { "username": "loadtest09", "password": "replace-me-09" },
+    { "username": "loadtest10", "password": "replace-me-10" },
+    { "username": "loadtest11", "password": "replace-me-11" },
+    { "username": "loadtest12", "password": "replace-me-12" },
+    { "username": "loadtest13", "password": "replace-me-13" },
+    { "username": "loadtest14", "password": "replace-me-14" },
+    { "username": "loadtest15", "password": "replace-me-15" },
+    { "username": "loadtest16", "password": "replace-me-16" },
+    { "username": "loadtest17", "password": "replace-me-17" },
+    { "username": "loadtest18", "password": "replace-me-18" },
+    { "username": "loadtest19", "password": "replace-me-19" },
+    { "username": "loadtest20", "password": "replace-me-20" }
+  ]
+}
