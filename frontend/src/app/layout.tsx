@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { AuthProvider } from "@/lib/auth";
 
@@ -44,6 +45,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body data-brand={brandShort}>
         <AuthProvider>{children}</AuthProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
