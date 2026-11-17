@@ -1,6 +1,8 @@
 # Phase 0 — Backup & Recovery Plan (Design)
 
-**Goal:** Protect the existing GIMS PostgreSQL data, uploaded/private documents, and critical configuration so the self-hosted deployment can be restored after failure, corruption, or cutover issues. **No backup/restore tooling was executed as part of this audit.**
+**Goal:** Protect the existing GIMS data, uploaded/private documents, and critical configuration so the self-hosted deployment can be restored after failure, corruption, or cutover issues.
+
+> **Implementation status (Phase 2):** the design below is implemented by `deploy/selfhosted/scripts/backup.sh` and `deploy/selfhosted/scripts/restore.sh` (runbook: `deploy/selfhosted/README.md` §10). **No backup or restore has actually been executed yet** — there is no Docker runtime, database client, or approved copy of the production dataset on the development host. A real restore drill on the Ubuntu VM is still a hard cutover gate.
 
 ---
 
@@ -40,18 +42,21 @@
 
 ---
 
-## 4. Automation & storage design (to implement in Phase 2)
+## 4. Automation & storage design (implemented in Phase 2)
 
-- Run backup jobs on Ubuntu VM (cron/systemd timer or scheduled container) with least-privilege credentials.
-- Write backups to a dedicated persistent volume/path, then copy/replicate to off-host destination.
+- Run backup jobs on Ubuntu VM (cron/systemd timer or scheduled container) with least-privilege credentials. → `deploy/selfhosted/README.md` §10 includes the `/etc/cron.d/gims-backup` entry.
+- Write backups to a dedicated persistent path (`BACKUP_DIR`, default `deploy/selfhosted/backups/<UTC timestamp>/`), then copy/replicate off-host via `BACKUP_HOOK` (e.g. `rclone sync`).
+- **Verification is built into the producer:** `backup.sh` runs `pg_restore --list` against the dump, requires at least one `TABLE` section, runs `tar -tzf` on the storage archive, then writes `SHA256SUMS` + `MANIFEST.txt`. Only after all of that does it write `.last-verified-backup`.
+- **Migration gate:** `deploy.sh --migrate` refuses to run unless that marker is younger than 24 hours, so "no verified backup" cannot silently become "migration ran anyway".
+- Retention: `BACKUP_RETENTION_DAYS` (default 14) prunes old sets but always keeps the newest `BACKUP_KEEP_MIN` (default 7); pruning only touches directories named `20*`.
+- **Restore is separate and destructive by design:** `restore.sh` validates checksums/dump/archive *before* stopping anything, requires `--yes` and a typed `RESTORE`, takes a fresh safety backup, then stops `cloudflared`/`nginx`/`app`/`queue`/`scheduler`, recreates the database from the dump, replaces `storage/app`, restarts, and runs `verify.sh`.
 - Encrypt backups at rest/in transit where supported (especially off-host copies).
-- Protect backup credentials/keys separately from runtime app secrets.
-- Avoid backing up transient caches/temp files; include everything required for consistent restore.
+- Protect backup credentials/keys separately from runtime app secrets. Note `.env` (with `APP_KEY`) is **not** in the backup set — keep an encrypted copy in a password manager.
 
 **Consistency considerations:**
-- Prefer DB backups during low-usage windows; document whether dumps are taken online and expected consistency model.
-- For file+DB coherence, capture DB backup and file snapshot close together and document restore ordering/point-in-time expectations.
-- If exports or other generated artifacts must be preserved, include their storage paths; otherwise document them as reproducible.
+- `pg_dump --format=custom` is a consistent online snapshot of the database; the storage archive is taken immediately after it in the same run, so DB/file skew is bounded by the archive duration. The runbook documents that a restore of `db.dump` without `storage.tar.gz` can leave `documents.file_path` rows pointing at missing files.
+- Prefer running backups in a low-usage window; `BACKUP_HOOK` failures are reported as warnings because the local artifact is still valid — but an un-replicated backup is a single point of failure.
+- Meilisearch data is intentionally **not** backed up: no model in this codebase is Scout-searchable, so it is rebuildable/expendable.
 
 ---
 
@@ -111,13 +116,15 @@
 
 ## 8. Implementation checklist (Phase 2 onward)
 
-- [ ] Choose backup tooling/format and destination(s), including off-host target
-- [ ] Script automated DB and file backups with logging/alerting
-- [ ] Define retention/pruning automation
-- [ ] Implement secure config/secret backup process
-- [ ] Perform and document **pre-cutover test restore** to separate DB
-- [ ] Validate document file restoration and app-level access
-- [ ] Add backup/restore steps to operations runbook and cutover plan
+- [x] Choose backup tooling/format and destination(s) — `pg_dump -Fc` + `tar.gz`, local `backups/`, off-host via `BACKUP_HOOK`
+- [x] Script automated DB and file backups with logging — `scripts/backup.sh` (`backup.log`, non-zero exit on failure, partial set removed)
+- [x] Define retention/pruning automation — `BACKUP_RETENTION_DAYS` / `BACKUP_KEEP_MIN`
+- [x] Implement secure config/secret backup process — gitignored `.env`/credentials; documented password-manager copy of `APP_KEY`
+- [x] Provide the restore runbook and tooling — `scripts/restore.sh` + README §10
+- [ ] Perform and document **pre-cutover test restore** to a separate DB — blocked until the Ubuntu VM and the authoritative dataset exist
+- [ ] Validate document file restoration and app-level access — same blocker
+- [ ] Wire backup/restore steps into the cutover checklist — partially done (README §11); final sign-off after a real drill
 
 ## 9. Current audit note
-No evidence of automated backup/restore implementation was validated in-repo during Phase 0. Existing `database/database_dump.sql` may be useful for context but must **not** be treated as a verified, current, or sufficient production backup without validation.
+
+Phase 0 found no automated backup/restore implementation in-repo. Phase 2 added the scripts described above, but they have not been executed: this workstation has no Docker daemon, no `psql`/MySQL client, and CLI PHP only has `pdo_sqlite`, so the database engine of the authoritative dataset is still unconfirmed. `database/database_dump.sql` must **not** be treated as a verified, current, or sufficient production backup without validation.
