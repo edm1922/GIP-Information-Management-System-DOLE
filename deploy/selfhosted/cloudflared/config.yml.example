@@ -1,0 +1,39 @@
+# Cloudflare Tunnel configuration — locally-managed tunnels (advanced).
+#
+# The recommended setup is a REMOTELY-MANAGED tunnel: create it in the
+# Cloudflare dashboard, add the public hostname there, and put the connector
+# token in `.env` as CLOUDFLARE_TUNNEL_TOKEN. No file in this directory is then
+# needed.
+#
+# Use this file only if you manage the tunnel locally:
+#   1. cloudflared tunnel login                 (writes ~/.cloudflared/cert.pem)
+#   2. cloudflared tunnel create gims           (writes <uuid>.json credentials)
+#   3. cloudflared tunnel route dns gims api.example.com
+#   4. cp config.yml.example config.yml and fill in the tunnel id + hostname
+#   5. copy the credentials file here (it is gitignored):
+#        cp ~/.cloudflared/<uuid>.json .
+#   6. in docker-compose.yml replace the cloudflared `command:` with
+#        tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+#      and add the volume mount:
+#        - ./cloudflared:/etc/cloudflared:ro
+#
+# `service` must be the Compose service name and port, NOT localhost: the
+# connector runs in its own container and reaches nginx over the Docker network.
+
+tunnel: REPLACE-WITH-TUNNEL-UUID
+credentials-file: /etc/cloudflared/REPLACE-WITH-TUNNEL-UUID.json
+
+no-autoupdate: true
+
+ingress:
+  # Public API hostname → nginx in the Compose network.
+  - hostname: api.example.com
+    service: http://nginx:80
+    originRequest:
+      connectTimeout: 30s
+      noTLSVerify: true
+      # Keep uploads below nginx/PHP limits; the API already enforces 10 MB.
+      httpHostHeader: api.example.com
+
+  # Required catch-all rule.
+  - service: http_status:404

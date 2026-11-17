@@ -1,0 +1,48 @@
+# Docker build context exclusions for the GIMS app and nginx images.
+# Build context is the repository root: docker compose build (see
+# deploy/selfhosted/docker-compose.yml).
+
+# --- VCS / editor / OS noise ------------------------------------------------
+.git
+.github
+.gitignore
+.gitattributes
+.editorconfig
+.DS_Store
+Thumbs.db
+
+# --- Dependencies (installed inside the image) -------------------------------
+vendor
+node_modules
+
+# --- Secrets and environment files ------------------------------------------
+# The image never reads .env: runtime configuration comes from Compose env_file.
+.env
+**/.env
+**/.env.*
+deploy/azure/.migrate.env
+deploy/selfhosted/cloudflared/*.json
+deploy/selfhosted/cloudflared/cert.pem
+
+# --- Local runtime data that must never be baked into an image --------------
+storage/logs
+storage/framework
+storage/app/private
+storage/app/public
+storage/pail
+bootstrap/cache
+public/storage
+public/hot
+*.log
+
+# --- Backups / generated artifacts ------------------------------------------
+deploy/selfhosted/backups
+deploy/selfhosted/.last-verified-backup
+deploy/selfhosted/.preflight-compose.err
+graphify-out
+tmp
+
+# --- Not needed at runtime -------------------------------------------------
+tests
+phpunit.xml
+docs

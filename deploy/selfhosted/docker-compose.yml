@@ -1,0 +1,175 @@
+# GIMS self-hosted backend — Ubuntu VM / Docker Compose.
+#
+# Run every command from this directory (`deploy/selfhosted`):
+#   docker compose config        # validate
+#   ./scripts/deploy.sh          # preflight + build + up (+ optional migrate)
+#   ./scripts/verify.sh          # health/security checks
+#
+# Exposure rules:
+#   * Only nginx publishes a port, and only on 127.0.0.1 (for local verification).
+#   * PostgreSQL, Meilisearch, PHP-FPM and the queue/scheduler have no host port.
+#   * Public traffic enters exclusively through Cloudflare Tunnel (cloudflared).
+
+name: gims
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-app: &app
+  build:
+    context: ../..
+    dockerfile: deploy/selfhosted/app/Dockerfile
+  image: gims-app:latest
+  env_file:
+    - .env
+  restart: unless-stopped
+  init: true
+  stop_grace_period: 120s
+  volumes:
+    # Uploaded/private documents, logs, compiled views, framework cache.
+    - app_storage:/var/www/html/storage
+    # Shared so `artisan config:cache` (run once in the app container) is seen
+    # by the queue worker and scheduler.
+    - bootstrap_cache:/var/www/html/bootstrap/cache
+  depends_on:
+    postgres:
+      condition: service_healthy
+    meilisearch:
+      condition: service_started
+  networks:
+    - gims
+  logging: *default-logging
+
+services:
+  # PHP-FPM: the Laravel API itself.
+  app:
+    <<: *app
+    healthcheck:
+      # Confirms the FPM master process is alive. Deliberately does NOT open a
+      # raw TCP connection: FPM logs "Invalid request (Unexpected EOF)" for a
+      # bare connect/close, which would flood the container log every interval.
+      # Real HTTP liveness is covered by nginx /healthz and scripts/verify.sh.
+      test: ["CMD-SHELL", "php -r 'foreach (glob(\"/proc/*/comm\") as $f) { if (trim(@file_get_contents($f)) === \"php-fpm\") exit(0); } exit(1);'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # Queue worker: notifications, mail and any queued jobs.
+  queue:
+    <<: *app
+    user: www-data
+    command:
+      - php
+      - artisan
+      - queue:work
+      - --sleep=3
+      - --tries=3
+      - --max-time=3600
+      - --max-jobs=1000
+
+  # Scheduler: runs `schedule:run` every minute (reminders, cleanup, etc.).
+  scheduler:
+    <<: *app
+    user: www-data
+    command:
+      - php
+      - artisan
+      - schedule:work
+
+  # nginx: static assets + FastCGI proxy to app:9000. No TLS: Cloudflare ends it.
+  nginx:
+    build:
+      context: ../..
+      dockerfile: deploy/selfhosted/nginx/Dockerfile
+    image: gims-nginx:latest
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
+    ports:
+      # Loopback only. Never change to 0.0.0.0:0.0.0.0/`80:80`; public access
+      # must go through the tunnel.
+      - "127.0.0.1:${NGINX_HOST_PORT:-8080}:80"
+    networks:
+      - gims
+    logging: *default-logging
+
+  # Primary datastore (spec target). Not published to the host.
+  postgres:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    stop_grace_period: 60s
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-gims}
+      POSTGRES_USER: ${DB_USERNAME:-gims}
+      # Compose interpolates this from the same .env; avoid a literal `$` in the
+      # password or escape it as `$$`.
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      TZ: UTC
+      PGTZ: UTC
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - gims
+    logging: *default-logging
+
+  # Search index. Rebuildable from the database, but persisted to avoid a
+  # full re-index after every deploy.
+  meilisearch:
+    image: getmeili/meilisearch:v1.16
+    restart: unless-stopped
+    environment:
+      MEILI_ENV: production
+      MEILI_MASTER_KEY: ${MEILISEARCH_KEY:?set MEILISEARCH_KEY (16+ chars) in .env}
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_HTTP_ADDR: 0.0.0.0:7700
+    volumes:
+      - meili_data:/meili_data
+    healthcheck:
+      # Informational only: scripts/verify.sh confirms reachability from the
+      # app container, which is the path Laravel actually uses.
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    networks:
+      - gims
+    logging: *default-logging
+
+  # Cloudflare Tunnel connector: the only public ingress path.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      # Remotely-managed tunnel token from the Cloudflare dashboard.
+      # Leave empty only if you switch to a locally-managed config file (see
+      # cloudflared/config.yml.example and the README).
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      nginx:
+        condition: service_started
+    networks:
+      - gims
+    logging: *default-logging
+
+volumes:
+  pgdata:
+  meili_data:
+  app_storage:
+  bootstrap_cache:
+
+networks:
+  gims:
+    driver: bridge

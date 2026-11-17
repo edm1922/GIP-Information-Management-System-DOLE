@@ -35,3 +35,12 @@ graphify-out/
 # Azure deployment: local secrets + downloaded CA bundle
 deploy/azure/.migrate.env
 deploy/azure/ca/
+
+# Self-hosted deployment: runtime secrets, tunnel credentials and backup data
+/deploy/selfhosted/.env
+/deploy/selfhosted/.preflight-compose.err
+/deploy/selfhosted/.last-verified-backup
+/deploy/selfhosted/backups/
+/deploy/selfhosted/cloudflared/config.yml
+/deploy/selfhosted/cloudflared/*.json
+/deploy/selfhosted/cloudflared/cert.pem
