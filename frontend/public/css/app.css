@@ -1,0 +1,471 @@
+/* ══════════════════════════════════════════════════════════════
+   Document Management System — Theme
+   ══════════════════════════════════════════════════════════════ */
+
+:root {
+    --brand-red: var(--company-primary, #1E429B);
+    --brand-red-dark: #16357C;
+    --brand-red-light: #4B6FC4;
+    --sidebar-bg: #2c3340;
+    --sidebar-bg-dark: #242a33;
+    --navbar-bg: #1e2328;
+    --text-primary: #ffffff;
+    --text-muted: #a0aab5;
+    --hover-bg: rgba(255, 255, 255, 0.08);
+    --active-bg: var(--company-primary-light, rgba(30, 66, 155, 0.25));
+    --active-border: var(--brand-red);
+}
+
+/* ── Top Navbar ── */
+.navbar.navbar-dark {
+    background: var(--navbar-bg) !important;
+    border-bottom: 2px solid var(--brand-red);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    min-height: 56px;
+    padding-top: 0rem !important;
+    padding-bottom: 0rem !important;
+}
+
+.navbar-brand {
+    color: var(--brand-red) !important;
+    font-weight: 700;
+    font-size: 1.15rem;
+    letter-spacing: 0.5px;
+}
+
+.navbar .nav-link {
+    color: var(--text-muted) !important;
+    transition: color 0.2s ease;
+}
+
+.navbar .nav-link:hover {
+    color: var(--text-primary) !important;
+}
+
+/* ── Modern Topbar Refresh ── */
+.topbar {
+    background: linear-gradient(120deg, #191e23 0%, #1f252c 60%, #232a31 100%) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 26px rgba(0, 0, 0, 0.25);
+}
+
+.topbar__inner {
+    min-height: 58px;
+    gap: 8px;
+}
+
+.topbar__brand {
+    color: #f1f5f9 !important;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    margin-right: 12px;
+}
+
+.topbar__brand img {
+    border-radius: 8px;
+}
+
+.topbar__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.topbar__user-dropdown {
+    position: relative;
+}
+
+.topbar__icon-btn {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    color: #d5dde6;
+    padding: 0;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.topbar__icon-btn:hover,
+.topbar__icon-btn:focus-visible {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.topbar__icon-btn:active {
+    transform: translateY(1px);
+}
+
+.topbar__icon-btn:focus-visible,
+.topbar__user-trigger:focus-visible {
+    outline: 2px solid var(--brand-red-light);
+    outline-offset: 2px;
+}
+
+.topbar__notification .badge {
+    font-size: 0.64rem;
+    font-weight: 700;
+    padding: 0.28rem 0.4rem;
+    border: 2px solid #1f252c;
+}
+
+.topbar__user-trigger {
+    width: 40px;
+    height: 40px;
+    border: 0;
+    background: transparent;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background 0.2s ease;
+}
+
+.topbar__user-trigger:hover,
+.topbar__user-trigger.show {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.topbar__user-icon {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    color: #fff;
+    background: linear-gradient(135deg, var(--brand-red) 0%, var(--brand-red-light) 100%);
+}
+
+.topbar__user-menu {
+    margin-top: 0.6rem;
+    min-width: 220px;
+    padding: 0.35rem 0;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+}
+
+.topbar__menu-header {
+    padding: 0.55rem 0.9rem 0.4rem;
+}
+
+.topbar__menu-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #1f2937;
+    line-height: 1.2;
+}
+
+.topbar__menu-role {
+    margin-top: 0.15rem;
+    font-size: 0.7rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.topbar__user-menu .dropdown-item {
+    font-size: 0.9rem;
+    padding: 0.5rem 0.9rem;
+}
+
+.topbar__user-menu .dropdown-item:active {
+    background-color: #f3f4f6;
+    color: #111827;
+}
+
+.topbar__menu-logout {
+    color: #b91c1c;
+}
+
+.topbar__menu-logout:hover,
+.topbar__menu-logout:focus {
+    color: #991b1b;
+    background-color: #fef2f2;
+}
+
+#sidebar-toggle {
+    color: var(--text-muted);
+    border: none;
+    transition: color 0.2s ease;
+}
+
+#sidebar-toggle:hover {
+    color: var(--text-primary);
+}
+
+/* ── Drawer Sidebar ── */
+.sidebar-drawer {
+    position: fixed;
+    top: 56px;
+    left: 0;
+    height: calc(100vh - 56px);
+    width: 270px;
+    background: var(--sidebar-bg);
+    z-index: 1045;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    padding: 0 0 1rem 0;
+}
+
+.sidebar-drawer.open {
+    transform: translateX(0);
+}
+
+/* ── Backdrop ── */
+.sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    top: 56px;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1040;
+    transition: opacity 0.3s ease;
+}
+
+.sidebar-backdrop.show {
+    display: block;
+}
+
+/* ── User Info Section ── */
+.sidebar-user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 20px 16px;
+    background: var(--sidebar-bg-dark);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    margin-bottom: 8px;
+}
+
+.sidebar-user-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--brand-red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.sidebar-user-avatar i {
+    font-size: 1.3rem;
+    color: white;
+}
+
+.sidebar-user-details {
+    overflow: hidden;
+}
+
+.sidebar-user-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sidebar-user-role .badge {
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+}
+
+/* ── Section Labels ── */
+.sidebar-section-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 16px 16px 6px;
+    list-style: none;
+    opacity: 0.7;
+}
+
+/* ── Nav links inside drawer ── */
+.sidebar-drawer .nav-link {
+    color: #c8cfd8;
+    border-radius: 6px;
+    margin: 1px 10px;
+    padding: 9px 12px;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+}
+
+.sidebar-drawer .nav-link:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
+    border-left-color: rgba(30, 66, 155, 0.4);
+}
+
+.sidebar-drawer .nav-link.active {
+    background: var(--active-bg);
+    color: var(--text-primary);
+    border-left-color: var(--active-border);
+    font-weight: 500;
+}
+
+.sidebar-drawer .nav-link i {
+    width: 20px;
+    margin-right: 10px;
+    text-align: center;
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+.sidebar-drawer .nav-link:hover i,
+.sidebar-drawer .nav-link.active i {
+    opacity: 1;
+}
+
+/* Sub-nav items */
+.sidebar-drawer .ms-3 .nav-link {
+    font-size: 0.8rem;
+    padding: 7px 12px;
+    margin-left: 16px;
+    color: var(--text-muted);
+}
+
+.sidebar-drawer .ms-3 .nav-link:hover {
+    color: var(--text-primary);
+}
+
+.sidebar-drawer .ms-3 .nav-link i {
+    font-size: 0.75rem;
+}
+
+/* ── Scrollbar ── */
+.sidebar-drawer::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar-drawer::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-drawer::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.sidebar-drawer::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* ── Main content ── */
+.main-content {
+    margin: 0;
+    padding: 1.5rem;
+    padding-top: calc(56px + 1rem); /* Account for navbar + 1rem gap */
+    min-height: 100vh;
+    background: #f5f6fa;
+    box-sizing: border-box;
+}
+
+/* ── Cards ── */
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+/* ── Buttons ── */
+.btn-brand {
+    background: var(--brand-red);
+    color: white;
+    border: none;
+    font-weight: 500;
+    transition: background 0.2s ease;
+}
+
+.btn-brand:hover {
+    background: var(--brand-red-dark);
+    color: white;
+}
+
+/* ── Badge Overrides ── */
+.badge.bg-danger {
+    background: var(--brand-red) !important;
+}
+
+/* ── Stats Card ── */
+.stat-card {
+    padding: 20px;
+    border-radius: 10px;
+    background: white;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card .stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.stat-card .stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #1e2328;
+}
+
+.stat-card .stat-label {
+    font-size: 0.8rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    .topbar__brand {
+        font-size: 0.92rem;
+        margin-right: 2px;
+    }
+
+    .topbar__brand img {
+        height: 30px;
+    }
+
+    .topbar__actions {
+        gap: 6px;
+    }
+
+    .topbar__icon-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+    }
+
+    .topbar__user-menu {
+        min-width: 200px;
+    }
+
+    .main-content {
+        padding: 1rem;
+    }
+}
