@@ -341,6 +341,50 @@ therefore crossed, as expected.
 Re-run the same profile behind Apache/PHP-FPM (and with config/routes cached)
 before drawing any conclusion about the application code itself; that is the
 apples-to-apples comparison for the target scenario.
+### Target re-run behind Apache/PHP (20 VUs, same profile)
+
+XAMPP Apache (mod_php, `mpm_winnt`) serving `http://localhost/GIPS/public`,
+plus `php artisan config:cache`. Same 20 accounts, same workflow.
+
+| Metric | php artisan serve | Apache + config cache | Change |
+|---|---|---|---|
+| Requests | 791 | **2738** | 3.5x |
+| Throughput | 2.56 req/s | **9.02 req/s** | 3.5x |
+| Iterations | 118 | **452** | 3.8x |
+| Failed requests | 0.00 % | **0.00 %** | - |
+| Response avg | 6391 ms | **1331 ms** | 4.8x faster |
+| p(95) | 7809 ms | **2346 ms** | 3.3x faster |
+| p(99) | 8404 ms | **3052 ms** | 2.8x faster |
+| Checks / auth failures / renewals | 100 % / 0 / 0 | **100 % / 0 / 0** | - |
+
+Apache per endpoint (requests, avg, p95): login 20 / 1354 / 2510 ms, auth/user
+433 / 1293 / 2401 ms, dashboard 906 / 1365 / 2315 ms, interns list 906 / 1374 /
+2362 ms, search 906 / 1382 / 2377 ms, details 906 / 1270 / 2142 ms, batch list
+906 / 1316 / 2368 ms.
+
+**Conclusion:** the 20-user ceiling was the single-threaded CLI server, not
+Laravel/MySQL. Moving to Apache lifted throughput 3.5x and cut p95 by ~3.3x with
+zero errors, so the application layer holds 20 concurrent readers. p95 is still
+above the 1.5 s threshold (2.3 s) because `http_req_waiting` still accounts for
+almost all latency - per-request server time, with opcache disabled (XAMPP
+default), DB-backed sessions/cache and the dashboard aggregates in the path.
+
+Next tuning steps, in expected-impact order: enable OPcache in `php.ini`
+(`zend_extension=opcache`, `opcache.enable=1`) and restart Apache; run with
+`APP_DEBUG=false`/`APP_ENV=production`-like config; then profile the dashboard
+aggregate queries (indexes on `interns.status`, `contract_end_date`,
+`partner_agency_id`) and move sessions/cache to Redis.
+
+Reproducing this run: append `localhost` to `SANCTUM_STATEFUL_DOMAINS` in `.env`
+(already done here), `php artisan config:cache`, then
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\load-testing\scripts\run.ps1 `
+  -Script load -Profile target -ApiBaseUrl http://localhost/GIPS/public
+```
+
+`php artisan optimize:clear` restores plain dev behaviour afterwards.
+
 ## 10. Safety compliance
 
 - Read-only requests only; no beneficiary/intern/document records are modified.
