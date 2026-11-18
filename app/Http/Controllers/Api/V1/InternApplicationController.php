@@ -19,7 +19,13 @@ class InternApplicationController extends Controller
     {
         $this->authorize('viewAny', InternApplication::class);
 
+        $viewer = $request->user();
         $query = InternApplication::query()->with(['partnerAgency', 'reviewer', 'approvedUser']);
+
+        // PESO reviews first; Admins only see applications after that decision.
+        if ($viewer?->isAdmin()) {
+            $query->where('status', '!=', 'pending');
+        }
 
         if ($status = $request->get('status')) {
             if (in_array($status, InternApplication::STATUSES, true)) {
@@ -40,7 +46,7 @@ class InternApplicationController extends Controller
 
         return response()->json([
             'applications' => InternApplicationResource::collection($applications)->response()->getData(true),
-            'pending_count' => InternApplication::query()->pending()->count(),
+            'pending_count' => $viewer?->isPesoManager() ? InternApplication::query()->pending()->count() : 0,
         ]);
     }
 

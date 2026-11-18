@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UserRequest;
 use App\Http\Resources\V1\UserResource;
+use App\Models\InternApplication;
 use App\Models\User;
+use App\Notifications\InternApplicationSubmitted;
 use App\Services\AuditService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -32,6 +34,14 @@ class UserController extends Controller
 
         $user = User::create($validated);
         AuditService::log('created', 'Created new user', $user);
+
+        // A newly created PESO manager should be aware of applications that are
+        // already waiting for first-stage review.
+        if ($user->role === 'peso_manager') {
+            InternApplication::query()->pending()->get()->each(
+                fn (InternApplication $application) => $user->notify(new InternApplicationSubmitted($application))
+            );
+        }
 
         return response()->json([
             'message' => 'User created successfully.',

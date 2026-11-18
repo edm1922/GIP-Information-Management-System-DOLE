@@ -18,7 +18,12 @@ class InternApplicationPolicy
 
     public function view(User $user, InternApplication $application): bool
     {
-        return $user->hasRole('admin', 'peso_manager');
+        if ($user->isAdmin()) {
+            // Admins only see an application after the PESO decision.
+            return $application->status !== 'pending';
+        }
+
+        return $user->isPesoManager();
     }
 
     public function approve(User $user, InternApplication $application): bool

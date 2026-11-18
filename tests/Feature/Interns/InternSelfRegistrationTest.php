@@ -266,6 +266,7 @@ it('lists applications for staff and resends credentials with a rotated password
     Mail::fake();
 
     $admin = User::factory()->admin()->create();
+    $peso = User::factory()->pesoManager()->create();
     $link = registrationLinkFor($admin);
 
     $this->postJson("/api/v1/public/registration/{$link->token}/applications", applicationPayload([
@@ -273,7 +274,7 @@ it('lists applications for staff and resends credentials with a rotated password
     ]))->assertCreated();
     $application = InternApplication::firstOrFail();
 
-    $this->actingAs($admin)
+    $this->actingAs($peso)
         ->getJson('/api/v1/intern-applications?status=pending')
         ->assertOk()
         ->assertJsonPath('pending_count', 1)
@@ -370,4 +371,65 @@ it('notifies admins and peso managers when an application is submitted', functio
         ->getJson('/api/v1/notifications')
         ->assertOk()
         ->assertJsonPath('unread_count', 1);
+});
+
+it('hides pending applications from admins but shows them to PESO managers', function () {
+    $admin = User::factory()->admin()->create();
+    $peso = User::factory()->pesoManager()->create();
+    $link = registrationLinkFor($admin);
+
+    $this->postJson("/api/v1/public/registration/{$link->token}/applications", applicationPayload([
+        'email' => 'visibility@example.test',
+    ]))->assertCreated();
+
+    $application = InternApplication::firstOrFail();
+
+    $this->actingAs($admin)
+        ->getJson('/api/v1/intern-applications')
+        ->assertOk()
+        ->assertJsonCount(0, 'applications.data')
+        ->assertJsonPath('pending_count', 0);
+
+    $this->actingAs($admin)
+        ->getJson("/api/v1/intern-applications/{$application->id}")
+        ->assertForbidden();
+
+    $this->actingAs($peso)
+        ->getJson('/api/v1/intern-applications')
+        ->assertOk()
+        ->assertJsonCount(1, 'applications.data')
+        ->assertJsonPath('pending_count', 1)
+        ->assertJsonPath('applications.data.0.status', 'pending');
+
+    // Once PESO approves, the admin sees the application.
+    Mail::fake();
+    $this->actingAs($peso)
+        ->postJson("/api/v1/intern-applications/{$application->id}/approve")
+        ->assertOk();
+
+    $this->actingAs($admin)
+        ->getJson('/api/v1/intern-applications')
+        ->assertOk()
+        ->assertJsonCount(1, 'applications.data')
+        ->assertJsonPath('applications.data.0.status', 'approved');
+});
+
+it('notifies a newly created PESO manager about existing pending applications', function () {
+    $admin = User::factory()->admin()->create();
+    $link = registrationLinkFor($admin);
+
+    $this->postJson("/api/v1/public/registration/{$link->token}/applications", applicationPayload([
+        'email' => 'peso.new@example.test',
+    ]))->assertCreated();
+
+    $this->actingAs($admin)->postJson('/api/v1/settings/users', [
+        'first_name' => 'New',
+        'last_name' => 'Manager',
+        'username' => 'new.peso.manager',
+        'role' => 'peso_manager',
+        'is_active' => true,
+    ])->assertCreated();
+
+    $peso = User::where('username', 'new.peso.manager')->firstOrFail();
+    expect($peso->unreadNotifications()->count())->toBe(1);
 });
