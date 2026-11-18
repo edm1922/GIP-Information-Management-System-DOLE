@@ -50,6 +50,7 @@ function internStatusBadgeClass(status: string | null | undefined): string {
 export default function DashboardPage() {
   const { open: openDocument } = useDocumentPreview();
   const downloadDocument = useDocumentDownload();
+  const { user } = useAuth();
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [year, setYear] = useState(new Date().getFullYear());
@@ -111,18 +112,21 @@ export default function DashboardPage() {
         </div>
 
         <div className="d-flex align-items-center gap-3 dashboard-header__controls">
-          <select
-            className="form-select form-select-sm w-auto"
-            value={year}
-            onChange={(event) => setYear(Number(event.target.value))}
-            aria-label="Reporting year"
-          >
-            {years.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+          {user?.role !== "intern" && (
+            <select
+              className="form-select form-select-sm w-auto"
+              value={year}
+              onChange={(event) => setYear(Number(event.target.value))}
+              aria-label="Reporting year"
+              title="Reporting year for the interns-onboarded trend"
+            >
+              {years.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          )}
 
           <div className="calendar-wrapper ms-auto">
             <div
