@@ -39,7 +39,7 @@ class InternApplicationApprovalService
                 ]);
             }
 
-            $username = trim((string) ($data['username'] ?? '')) ?: $this->suggestUsername($locked);
+            $username = $this->suggestUsername($locked);
 
             if (User::query()->where('username', $username)->exists()) {
                 throw ValidationException::withMessages([
@@ -176,15 +176,17 @@ class InternApplicationApprovalService
         return $application->fresh();
     }
 
-    /** Suggested username based on the applicant's name. */
+    /**
+     * Standard intern username: LASTNAME + "_" + first two letters of the
+     * given name, lower-cased and stripped of punctuation (e.g. "delacruz_ma").
+     * A numeric suffix is appended on collisions.
+     */
     public function suggestUsername(InternApplication $application): string
     {
-        $base = Str::slug($application->first_name.' '.$application->last_name, '.');
-        $base = trim($base, '.');
+        $lastName = Str::slug((string) $application->last_name, '');
+        $firstName = Str::slug((string) $application->first_name, '');
 
-        if ($base === '') {
-            $base = 'intern';
-        }
+        $base = ($lastName !== '' ? $lastName : 'intern').'_'.substr($firstName !== '' ? $firstName : 'in', 0, 2);
 
         $candidate = $base;
         $suffix = 1;

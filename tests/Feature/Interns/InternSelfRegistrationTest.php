@@ -151,7 +151,6 @@ it('approves an application, creates the account and emails the credentials', fu
 
     $this->actingAs($admin)
         ->postJson("/api/v1/intern-applications/{$application->id}/approve", [
-            'username' => 'approved.applicant',
             'supervisor' => 'JUAN DELA CRUZ',
             'required_hours' => 486,
             'intern_type' => 'GIP',
@@ -161,7 +160,7 @@ it('approves an application, creates the account and emails the credentials', fu
         ->assertJsonPath('application.credential_email_status', 'sent');
 
     $application->refresh();
-    $user = User::where('username', 'approved.applicant')->firstOrFail();
+    $user = User::where('username', 'delacruz_ma')->firstOrFail();
     $intern = Intern::firstOrFail();
 
     expect($user->role)->toBe('intern')
@@ -180,13 +179,13 @@ it('approves an application, creates the account and emails the credentials', fu
     /** @var InternCredentialsMail $mailable */
     $mailable = Mail::sent(InternCredentialsMail::class)->first();
     expect($mailable)->not->toBeNull()
-        ->and($mailable->username)->toBe('approved.applicant')
+        ->and($mailable->username)->toBe('delacruz_ma')
         ->and(Hash::check($mailable->temporaryPassword, $user->password))->toBeTrue();
 
     // The generated credentials work, and the first login is forced to change.
     Auth::logout();
     $this->postJson('/api/v1/auth/login', [
-        'username' => 'approved.applicant',
+        'username' => 'delacruz_ma',
         'password' => $mailable->temporaryPassword,
     ])->assertOk()
         ->assertJsonPath('user.must_change_password', true);
@@ -300,4 +299,38 @@ it('lists applications for staff and resends credentials with a rotated password
     $this->actingAs(User::factory()->intern()->create())
         ->postJson("/api/v1/intern-applications/{$application->id}/credential-email")
         ->assertForbidden();
+});
+
+it('does not send any email when an application is first submitted', function () {
+    Mail::fake();
+
+    $admin = User::factory()->admin()->create();
+    $link = registrationLinkFor($admin);
+
+    $this->postJson("/api/v1/public/registration/{$link->token}/applications", applicationPayload())
+        ->assertCreated()
+        ->assertJsonMissingPath('username');
+
+    Mail::assertNothingSent();
+});
+
+it('suffixes the standardized username when it is already taken', function () {
+    Mail::fake();
+
+    User::factory()->intern()->create(['username' => 'delacruz_ma']);
+
+    $admin = User::factory()->admin()->create();
+    $link = registrationLinkFor($admin);
+
+    $this->postJson("/api/v1/public/registration/{$link->token}/applications", applicationPayload())
+        ->assertCreated();
+
+    $application = InternApplication::firstOrFail();
+
+    $this->actingAs($admin)
+        ->postJson("/api/v1/intern-applications/{$application->id}/approve")
+        ->assertOk();
+
+    expect(User::where('username', 'delacruz_ma2')->exists())->toBeTrue()
+        ->and($application->fresh()->approvedUser?->username)->toBe('delacruz_ma2');
 });

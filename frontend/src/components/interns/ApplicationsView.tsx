@@ -18,7 +18,6 @@ import type {
 type Mode = "approve" | "reject" | null;
 
 interface ApproveValues {
-  username: string;
   partner_agency_id: string;
   supervisor: string;
   contract_start_date: string;
@@ -53,6 +52,7 @@ export function ApplicationsView() {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [approve, setApprove] = useState<ApproveValues | null>(null);
+  const [suggestedUsername, setSuggestedUsername] = useState("");
   const [rejectReason, setRejectReason] = useState("");
 
   const load = useCallback(async () => {
@@ -92,8 +92,8 @@ export function ApplicationsView() {
     try {
       const payload = await api.get<InternApplicationResponse>(`/api/v1/intern-applications/${application.id}`);
       setSelected(payload.application);
+      setSuggestedUsername(payload.application.approved_username ?? payload.suggested_username ?? "");
       setApprove({
-        username: payload.application.approved_username ?? payload.suggested_username ?? "",
         partner_agency_id: payload.application.partner_agency_id ? String(payload.application.partner_agency_id) : "",
         supervisor: "",
         contract_start_date: payload.application.preferred_start_date ?? "",
@@ -126,7 +126,6 @@ export function ApplicationsView() {
       const payload = await api.post<{ message: string; application: InternApplication }>(
         `/api/v1/intern-applications/${selected.id}/approve`,
         {
-          username: approve.username || null,
           partner_agency_id: approve.partner_agency_id ? Number(approve.partner_agency_id) : null,
           supervisor: approve.supervisor || null,
           contract_start_date: approve.contract_start_date || null,
@@ -448,14 +447,12 @@ export function ApplicationsView() {
                 </h6>
                 <div className="row g-2">
                   <div className="col-sm-6">
-                    <label className="form-label">Username</label>
-                    <input
-                      className="form-control"
-                      value={approve.username}
-                      onChange={(event) => setApprove({ ...approve, username: event.target.value })}
-                      placeholder="first.last"
-                    />
-                    <div className="form-text">The temporary password is generated automatically and emailed.</div>
+                    <label className="form-label">Username (auto-generated)</label>
+                    <input className="form-control" value={suggestedUsername} readOnly />
+                    <div className="form-text">
+                      Format: <code>lastname_first2letters</code> (e.g. <code>delacruz_ma</code>). Credentials are
+                      emailed only after you approve.
+                    </div>
                   </div>
                   <div className="col-sm-6">
                     <label className="form-label">Partner Agency</label>

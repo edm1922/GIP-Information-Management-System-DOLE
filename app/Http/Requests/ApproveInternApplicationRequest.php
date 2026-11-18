@@ -13,22 +13,9 @@ class ApproveInternApplicationRequest extends FormRequest
         return true; // enforced by the controller policy
     }
 
-    protected function prepareForValidation(): void
-    {
-        if ($this->filled('username')) {
-            $this->merge(['username' => strtolower(trim((string) $this->input('username')))]);
-        }
-    }
-
     public function rules(): array
     {
         return [
-            // Account
-            'username' => [
-                'nullable', 'string', 'max:50', 'regex:/^[a-z0-9][a-z0-9._-]*$/',
-                Rule::unique('users', 'username'),
-            ],
-
             // Placement
             'partner_agency_id' => ['nullable', 'integer', 'exists:companies,id'],
             'supervisor' => ['nullable', 'string', 'max:150'],
@@ -49,7 +36,6 @@ class ApproveInternApplicationRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'username.unique' => 'This username is already taken.',
             'contract_end_date.after_or_equal' => 'The contract end date must be on or after the start date.',
         ];
     }
