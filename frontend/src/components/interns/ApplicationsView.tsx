@@ -55,8 +55,8 @@ export function ApplicationsView() {
   const [suggestedUsername, setSuggestedUsername] = useState("");
   const [rejectReason, setRejectReason] = useState("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
@@ -68,12 +68,31 @@ export function ApplicationsView() {
     } catch (requestError) {
       setError(requestError instanceof ApiError ? requestError.message : "Unable to load applications.");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [status, search, page]);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  // Keep the queue fresh while it is open: new applications appear without a
+  // manual reload, and the screen refreshes when the tab regains focus.
+  useEffect(() => {
+    const interval = window.setInterval(() => load(true), 30_000);
+    const onFocus = () => load(true);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") load(true);
+    };
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [load]);
 
   useEffect(() => {
@@ -207,9 +226,14 @@ export function ApplicationsView() {
             send any email — credentials are emailed when you approve.
           </p>
         </div>
-        <Link className="btn btn-outline-secondary" href="/interns">
-          <i className="fas fa-arrow-left me-1" /> Back to Interns
-        </Link>
+        <div className="d-flex flex-wrap gap-2">
+          <button type="button" className="btn btn-outline-secondary" onClick={() => load(true)}>
+            <i className="fas fa-rotate-right me-1" /> Refresh
+          </button>
+          <Link className="btn btn-outline-secondary" href="/interns">
+            <i className="fas fa-arrow-left me-1" /> Back to Interns
+          </Link>
+        </div>
       </div>
 
       {notice && (
