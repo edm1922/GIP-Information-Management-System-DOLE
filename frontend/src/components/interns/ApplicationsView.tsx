@@ -7,6 +7,7 @@ import { DEFAULT_REQUIRED_HOURS, INTERN_TYPES, INTERN_STATUSES } from "@/compone
 import { Modal } from "@/components/ui/Modal";
 import { Pagination } from "@/components/ui/Pagination";
 import { ApiError, api } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { formatDate, ucfirst } from "@/lib/format";
 import type {
   InternApplication,
@@ -36,6 +37,7 @@ function statusBadge(status: InternApplication["status"]): string {
 }
 
 export function ApplicationsView() {
+  const { isAdmin } = useAuth();
   const [data, setData] = useState<InternApplicationsResponse | null>(null);
   const [agencies, setAgencies] = useState<InternsIndexResponse["agencies"]>([]);
   const [loading, setLoading] = useState(true);
@@ -222,8 +224,9 @@ export function ApplicationsView() {
             {pendingCount > 0 && <span className="badge bg-warning text-dark align-middle">{pendingCount} pending</span>}
           </h2>
           <p className="text-muted mb-0" style={{ fontSize: "0.85rem" }}>
-            Applications submitted through the shareable self-registration link. Submitting an application does not
-            send any email — credentials are emailed when you approve.
+            {isAdmin
+              ? "Applications appear here only after a PESO manager has reviewed them."
+              : "Applications submitted through the shareable self-registration link. Submitting an application does not send any email — credentials are emailed when you approve."}
           </p>
         </div>
         <div className="d-flex flex-wrap gap-2">
@@ -280,7 +283,7 @@ export function ApplicationsView() {
                 }}
               >
                 <option value="">All</option>
-                <option value="pending">Pending</option>
+                {!isAdmin && <option value="pending">Pending</option>}
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
               </select>
@@ -330,7 +333,9 @@ export function ApplicationsView() {
               {!loading && data?.applications.data.length === 0 && (
                 <tr>
                   <td colSpan={7} className="text-center text-muted py-4">
-                    No applications found. Share the registration link from the Interns page.
+                    {isAdmin
+                      ? "No PESO-reviewed applications yet. Pending applications are only visible to PESO managers."
+                      : "No applications found. Share the registration link from the Interns page."}
                   </td>
                 </tr>
               )}
