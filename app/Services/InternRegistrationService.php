@@ -132,8 +132,10 @@ class InternRegistrationService
 
     private function notifyReviewers(InternApplication $application): void
     {
+        // PESO reviews first. Admins are only notified after the PESO manager
+        // endorses the application (see InternApplicationApprovalService).
         User::query()
-            ->whereIn('role', ['admin', 'peso_manager'])
+            ->where('role', 'peso_manager')
             ->where('is_active', true)
             ->get()
             ->each(fn (User $reviewer) => $reviewer->notify(new InternApplicationSubmitted($application)));

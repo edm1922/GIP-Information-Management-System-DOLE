@@ -390,7 +390,7 @@ it('blocks resubmission when a soft-deleted account still owns the email', funct
     ]))->assertStatus(422)->assertJsonValidationErrors('email');
 });
 
-it('notifies admins and peso managers when an application is submitted', function () {
+it('notifies only peso managers when an application is submitted', function () {
     $admin = User::factory()->admin()->create();
     $peso = User::factory()->pesoManager()->create();
     $internUser = User::factory()->intern()->create();
@@ -399,18 +399,19 @@ it('notifies admins and peso managers when an application is submitted', functio
     $this->postJson("/api/v1/public/registration/{$link->token}/applications", applicationPayload())
         ->assertCreated();
 
-    expect($admin->fresh()->unreadNotifications()->count())->toBe(1)
+    expect($admin->fresh()->unreadNotifications()->count())->toBe(0)
         ->and($peso->fresh()->unreadNotifications()->count())->toBe(1)
         ->and($internUser->fresh()->unreadNotifications()->count())->toBe(0);
 
-    $notification = $admin->fresh()->unreadNotifications()->first();
+    $notification = $peso->fresh()->unreadNotifications()->first();
     expect($notification->data['url'])->toBe('/interns/applications')
         ->and($notification->data['message'])->toContain('submitted an intern application');
 
+    // The admin is not notified until PESO endorses the application.
     $this->actingAs($admin)
         ->getJson('/api/v1/notifications')
         ->assertOk()
-        ->assertJsonPath('unread_count', 1);
+        ->assertJsonPath('unread_count', 0);
 });
 
 it('hides pending applications from admins but shows them to PESO managers', function () {

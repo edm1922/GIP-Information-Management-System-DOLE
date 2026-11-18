@@ -6,8 +6,9 @@ use App\Models\InternApplication;
 use Illuminate\Notifications\Notification;
 
 /**
- * Database notification for Admins / PESO Managers when a public application
- * is submitted (drives the topbar bell badge).
+ * Database notification for PESO Managers when a public application is
+ * submitted (drives the topbar bell badge). Admins are notified only after
+ * PESO endorses the application.
  */
 class InternApplicationSubmitted extends Notification
 {
