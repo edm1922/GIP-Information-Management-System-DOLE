@@ -17,6 +17,9 @@ interface UploadFormProps {
 }
 
 const ACCEPT = ".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.csv";
+const IMAGE_ACCEPT = "image/jpeg,image/png,image/webp";
+/** Matches StoreInternDocumentRequest (`max:10240` KB). */
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
 /** Upload form shared by the DTR and 201 Files tabs (`_upload-form.blade.php`). */
 export function UploadForm({
@@ -28,6 +31,7 @@ export function UploadForm({
   onUploaded,
 }: UploadFormProps) {
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const cameraRef = useRef<HTMLInputElement | null>(null);
 
   // When a tab offers a single document type (the DTR tab only has "Daily Time
   // Record"), preselect it and skip the one-option dropdown entirely.
@@ -39,6 +43,7 @@ export function UploadForm({
   const [days, setDays] = useState<string[]>([]);
   const [hours, setHours] = useState<Record<string, number>>({});
   const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
@@ -48,6 +53,42 @@ export function UploadForm({
   useEffect(() => {
     if (lockedTypeId) setTypeId(lockedTypeId);
   }, [lockedTypeId]);
+
+  // Thumbnail feedback for image files, including photos taken with the camera.
+  useEffect(() => {
+    if (!file || !file.type.startsWith("image/")) {
+      setPreview(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setPreview(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+
+  const pickFile = (candidate: File | null) => {
+    setErrors((current) => {
+      if (!("file" in current)) return current;
+      const next = { ...current };
+      delete next.file;
+      return next;
+    });
+
+    if (!candidate) {
+      setFile(null);
+      return;
+    }
+
+    if (candidate.size > MAX_FILE_BYTES) {
+      setFile(null);
+      setErrors((current) => ({
+        ...current,
+        file: ["That file is larger than 10 MB. Choose a smaller file or lower your camera's photo resolution."],
+      }));
+      return;
+    }
+
+    setFile(candidate);
+  };
 
   const effectiveTypeId = singleType ? lockedTypeId : typeId;
   const selectedType = documentTypes.find((type) => String(type.id) === effectiveTypeId) ?? null;
@@ -60,7 +101,9 @@ export function UploadForm({
     setDays([]);
     setHours({});
     setFile(null);
+    setPreview(null);
     if (fileRef.current) fileRef.current.value = "";
+    if (cameraRef.current) cameraRef.current.value = "";
   };
 
   const submit = async (event: React.FormEvent) => {
@@ -250,9 +293,14 @@ export function UploadForm({
               type="file"
               className="d-none"
               accept={ACCEPT}
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+              onChange={(event) => pickFile(event.target.files?.[0] ?? null)}
             />
-            <i className="fas fa-cloud-upload-alt fa-2x mb-2" style={{ color: "var(--company-primary)" }} />
+            {preview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={preview} alt="Selected document preview" className="upload-preview mb-2" />
+            ) : (
+              <i className="fas fa-cloud-upload-alt fa-2x mb-2" style={{ color: "var(--company-primary)" }} />
+            )}
             {file ? (
               <div className="fw-semibold text-success">
                 <i className="fas fa-file-circle-check" /> {file.name}
@@ -267,6 +315,26 @@ export function UploadForm({
             )}
             <div className="form-text mt-2">PDF, JPG, PNG, DOC, DOCX, XLS, XLSX, CSV (max 10 MB).</div>
           </div>
+
+          <div className="upload-mobile-actions mt-2 text-center">
+            <button
+              type="button"
+              className="btn btn-outline-secondary upload-camera-btn"
+              onClick={() => cameraRef.current?.click()}
+            >
+              <i className="fas fa-camera me-2" /> Take a photo instead
+            </button>
+            <div className="form-text mt-1">Opens your phone camera. You can retake the photo before uploading.</div>
+          </div>
+          <input
+            ref={cameraRef}
+            type="file"
+            accept={IMAGE_ACCEPT}
+            capture="environment"
+            className="d-none"
+            onChange={(event) => pickFile(event.target.files?.[0] ?? null)}
+          />
+
           {errors.file && <div className="text-danger small mt-1">{errors.file[0]}</div>}
         </div>
 

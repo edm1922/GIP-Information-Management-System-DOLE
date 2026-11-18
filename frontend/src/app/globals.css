@@ -762,3 +762,25 @@ svg {
     padding-right: 1.25rem;
   }
 }
+/* Mobile camera capture for document uploads (DTR / 201 Files). */
+.upload-preview {
+  max-height: 140px;
+  max-width: 100%;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  object-fit: contain;
+}
+.upload-mobile-actions {
+  display: none;
+}
+
+@media (max-width: 767.98px) {
+  .upload-mobile-actions {
+    display: block;
+  }
+  .upload-camera-btn {
+    width: 100%;
+    max-width: 340px;
+    min-height: 46px;
+  }
+}
