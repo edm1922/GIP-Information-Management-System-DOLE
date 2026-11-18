@@ -70,6 +70,7 @@ export default function NotificationsPage() {
     try {
       const response = await api.post<{ message: string; affected_count: number }>("/api/v1/notifications/mark-all-read");
       setStatus(response.message);
+      window.dispatchEvent(new Event("gims:notifications-updated"));
       await load();
     } catch (requestError) {
       setStatus(requestError instanceof ApiError ? requestError.message : "Notifications could not be updated.");
@@ -84,6 +85,7 @@ export default function NotificationsPage() {
     try {
       const response = await api.post<{ message: string }>(`/api/v1/notifications/${id}/read`);
       setStatus(response.message);
+      window.dispatchEvent(new Event("gims:notifications-updated"));
       await load();
     } catch (requestError) {
       setStatus(requestError instanceof ApiError ? requestError.message : "The notification could not be updated.");

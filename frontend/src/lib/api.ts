@@ -101,7 +101,13 @@ function normalizePaginators(value: unknown): unknown {
   if (!value || typeof value !== "object") return value;
 
   if (isPaginator(value)) {
-    return { ...value.meta, data: value.data, links: value.meta.links ?? value.links };
+    // Preserve sibling fields (e.g. `unread_count`, `pending_count`) that sit
+    // next to the paginator instead of returning only the flattened meta.
+    const { meta, data, links, ...rest } = value as Record<string, unknown> & {
+      meta: Record<string, unknown>;
+    };
+
+    return { ...meta, ...rest, data, links: meta.links ?? links };
   }
 
   const record = value as Record<string, unknown>;

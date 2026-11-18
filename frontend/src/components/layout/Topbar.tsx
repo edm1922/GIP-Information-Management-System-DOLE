@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -16,19 +16,42 @@ export function Topbar({ onToggleSidebar }: { onToggleSidebar: () => void }) {
   const [unread, setUnread] = useState(0);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
 
-  // Refetch on navigation so the badge reflects notifications just marked read.
+  const loadUnread = useCallback(async () => {
+    try {
+      const payload = await api.get<{ unread_count?: number }>("/api/v1/notifications");
+      setUnread(payload.unread_count ?? 0);
+    } catch {
+      // Keep the last known count if the request fails.
+    }
+  }, []);
+
+  // Refresh on navigation, on a short poll (so new notifications appear while
+  // the user stays on one page), on tab focus/visibility, and immediately when
+  // the notifications screen marks something read.
   useEffect(() => {
-    let cancelled = false;
-    api
-      .get<{ unread_count?: number }>("/api/v1/notifications")
-      .then((payload) => {
-        if (!cancelled) setUnread(payload.unread_count ?? 0);
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
+    loadUnread();
+  }, [pathname, loadUnread]);
+
+  useEffect(() => {
+    const interval = window.setInterval(loadUnread, 20_000);
+
+    const onFocus = () => loadUnread();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") loadUnread();
     };
-  }, [pathname]);
+    const onUpdated = () => loadUnread();
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("gims:notifications-updated", onUpdated);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("gims:notifications-updated", onUpdated);
+    };
+  }, [loadUnread]);
 
   useEffect(() => {
     if (!open) return;
