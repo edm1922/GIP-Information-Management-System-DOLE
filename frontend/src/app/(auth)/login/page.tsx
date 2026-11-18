@@ -15,7 +15,19 @@ export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (window.sessionStorage.getItem("gims_session_expired") === "1") {
+        window.sessionStorage.removeItem("gims_session_expired");
+        setNotice("Your session expired or was reset. Please sign in again.");
+      }
+    } catch {
+      // storage disabled — ignore
+    }
+  }, []);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -61,6 +73,13 @@ export default function LoginPage() {
           >
             <h1>GIMS</h1>
             <span>Please enter your credentials.</span>
+
+            {notice && (
+              <div className="alert alert-warning w-100 py-2 text-center" role="status" style={{ fontSize: "0.8rem" }}>
+                <i className="fas fa-triangle-exclamation me-1" />
+                {notice}
+              </div>
+            )}
 
             {errors.length > 0 && (
               <div

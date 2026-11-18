@@ -40,6 +40,18 @@ export default function ForcePasswordChangePage() {
       await refresh();
       router.replace("/dashboard");
     } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        // The session cookie is stale/invalid (e.g. the account was reset while
+        // this tab was open). Clear it and start over at the login page.
+        try {
+          window.sessionStorage.setItem("gims_session_expired", "1");
+        } catch {
+          // private mode / storage disabled — still redirect
+        }
+        await api.post("/api/v1/auth/logout").catch(() => undefined);
+        window.location.assign("/login");
+        return;
+      }
       if (error instanceof ApiError && error.status === 422) {
         const fieldErrors = Object.values(error.errors).flat();
         setErrors(fieldErrors.length > 0 ? fieldErrors : [error.message]);
