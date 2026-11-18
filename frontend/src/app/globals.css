@@ -834,3 +834,38 @@ svg {
     height: 120px;
   }
 }
+/* Password fields with visibility toggle (force-password-change page) */
+.password-field {
+  position: relative;
+  width: 100%;
+}
+.password-field input {
+  padding-right: 46px !important;
+}
+.password-field .toggle-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.password-field .toggle-btn:hover,
+.password-field .toggle-btn:focus-visible {
+  background: #e5e7eb;
+  color: #111827;
+  outline: none;
+}
+.form-panel .btn-signin {
+  width: 100%;
+  max-width: 320px;
+}

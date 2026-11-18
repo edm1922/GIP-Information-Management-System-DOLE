@@ -58,16 +58,12 @@ export default function ForcePasswordChangePage() {
       <div className="login-container">
         <div className="overlay-panel">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/image/dole-logo.png"
-            alt={`${brandShort} Logo`}
-            style={{ height: 120, marginBottom: 16, maxWidth: "90%", objectFit: "contain" }}
-          />
+          <img src="/image/dole-logo.png" alt={`${brandShort} Logo`} className="login-logo" />
 
-          <h2 style={{ fontSize: "1.4rem", fontWeight: 700, marginBottom: 10, color: "#111827" }}>Security Notice</h2>
-          <p style={{ fontSize: "0.88rem", lineHeight: 1.6, color: "#4b5563", marginBottom: 20 }}>
-            As this is your first time logging in, you are required to change your temporary default password
-            before proceeding.
+          <h2 style={{ fontSize: "1.6rem", marginBottom: 8 }}>Security Notice</h2>
+          <p style={{ marginBottom: 18 }}>
+            This is your first time signing in, so you need to replace your temporary password before continuing.
+            Choose a password you have not used for GIMS before.
           </p>
 
           {user && (
@@ -94,10 +90,7 @@ export default function ForcePasswordChangePage() {
         </div>
 
         <div className="form-panel">
-          <form
-            onSubmit={handleSubmit}
-            style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}
-          >
+          <form onSubmit={handleSubmit} className="w-100 d-flex flex-column align-items-center">
             <div
               style={{
                 width: 44,
@@ -109,52 +102,37 @@ export default function ForcePasswordChangePage() {
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: "1.2rem",
-                marginBottom: 12,
+                marginBottom: 10,
               }}
             >
               <i className="fas fa-shield-alt" />
             </div>
 
-            <h1 style={{ fontSize: "1.6rem", fontWeight: 800, margin: "0 0 6px", color: "#111827" }}>
-              Set New Password
-            </h1>
-            <span style={{ fontSize: "0.82rem", color: "#6b7280", marginBottom: 20, textAlign: "center" }}>
-              Enter your new personal password to secure your account.
+            <h1 style={{ fontSize: "1.7rem", margin: "0 0 4px" }}>Set New Password</h1>
+            <span style={{ marginBottom: 18, textAlign: "center" }}>
+              Use at least 8 characters. You will use this password for future sign-ins.
             </span>
 
             {errors.length > 0 && (
-              <div
-                role="alert"
-                style={{
-                  width: "100%",
-                  marginBottom: 16,
-                  padding: "10px 14px",
-                  borderRadius: 8,
-                  background: "#fee2e2",
-                  borderLeft: "3px solid #ef4444",
-                  color: "#b91c1c",
-                  fontSize: "0.82rem",
-                  fontWeight: 500,
-                  textAlign: "left",
-                }}
-              >
+              <div className="alert alert-danger w-100 py-2" role="alert" style={{ fontSize: "0.85rem" }}>
                 {errors.map((message) => (
-                  <div key={message} style={{ marginBottom: 2 }}>
+                  <div key={message}>
                     <i className="fas fa-exclamation-circle me-1" /> {message}
                   </div>
                 ))}
               </div>
             )}
 
-            <div className="input-group-custom">
+            <div className="password-field">
               <input
                 type={showPassword ? "text" : "password"}
                 id="password"
                 name="password"
-                placeholder="New Password (min. 8 characters)"
+                placeholder="New password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 required
+                minLength={8}
                 autoFocus
                 autoComplete="new-password"
               />
@@ -162,35 +140,39 @@ export default function ForcePasswordChangePage() {
                 type="button"
                 className="toggle-btn"
                 onClick={() => setShowPassword((value) => !value)}
-                aria-label="Toggle password visibility"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                title={showPassword ? "Hide password" : "Show password"}
               >
                 <i className={`fas ${showPassword ? "fa-eye-slash" : "fa-eye"}`} />
               </button>
             </div>
 
-            <div className="input-group-custom" style={{ marginBottom: 22 }}>
+            <div className="password-field" style={{ marginBottom: 20 }}>
               <input
                 type={showConfirmation ? "text" : "password"}
                 id="password_confirmation"
                 name="password_confirmation"
-                placeholder="Confirm New Password"
+                placeholder="Confirm new password"
                 value={confirmation}
                 onChange={(event) => setConfirmation(event.target.value)}
                 required
+                minLength={8}
                 autoComplete="new-password"
               />
               <button
                 type="button"
                 className="toggle-btn"
                 onClick={() => setShowConfirmation((value) => !value)}
-                aria-label="Toggle password confirmation visibility"
+                aria-label={showConfirmation ? "Hide password confirmation" : "Show password confirmation"}
+                title={showConfirmation ? "Hide password confirmation" : "Show password confirmation"}
               >
                 <i className={`fas ${showConfirmation ? "fa-eye-slash" : "fa-eye"}`} />
               </button>
             </div>
 
-            <button type="submit" className="btn-submit" disabled={submitting}>
-              <i className="fas fa-key" /> {submitting ? "Saving…" : "Save & Proceed"}
+            <button type="submit" className="btn-signin" disabled={submitting}>
+              {submitting ? <i className="fas fa-circle-notch fa-spin me-1" /> : <i className="fas fa-key me-1" />}
+              {submitting ? "Saving…" : "Save & Proceed"}
             </button>
           </form>
 
@@ -201,10 +183,10 @@ export default function ForcePasswordChangePage() {
               await refresh();
               router.replace("/login");
             }}
-            style={{ marginTop: 18 }}
+            className="w-100 text-center mt-3"
           >
-            <button type="submit" className="btn-logout">
-              <i className="fas fa-sign-out-alt" /> Logout instead
+            <button type="submit" className="btn btn-link text-muted p-0" style={{ fontSize: "0.85rem" }}>
+              <i className="fas fa-sign-out-alt me-1" /> Logout instead
             </button>
           </form>
         </div>
