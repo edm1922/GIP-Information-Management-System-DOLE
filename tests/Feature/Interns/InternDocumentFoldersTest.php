@@ -44,7 +44,7 @@ function fldIntern(string $first = 'Juan', string $last = 'Dela Cruz'): array
     return [$user, $intern];
 }
 
-function fldDocument(Intern $intern, DocumentType $type, string $filename, string $status = 'pending'): InternDocument
+function fldDocument(Intern $intern, DocumentType $type, string $filename, string $status = 'pending_peso'): InternDocument
 {
     return InternDocument::withoutGlobalScope('intern')->create([
         'intern_id' => $intern->id,
@@ -201,7 +201,7 @@ it('filters folders that still have pending documents', function () {
     [, $pendingIntern] = fldIntern('Juan', 'Dela Cruz');
     [, $clearedIntern] = fldIntern('Maria', 'Santos');
 
-    fldDocument($pendingIntern, $dtrType, 'pending.pdf', 'pending');
+    fldDocument($pendingIntern, $dtrType, 'pending.pdf', 'pending_peso');
     fldDocument($clearedIntern, $dtrType, 'approved.pdf', 'approved');
 
     $response = $this->actingAs($admin)->get(route('intern-documents.folders', ['filter' => 'pending']));

@@ -41,7 +41,6 @@ export function UploadForm({
   const [typeId, setTypeId] = useState(lockedTypeId);
   const [period, setPeriod] = useState("");
   const [days, setDays] = useState<string[]>([]);
-  const [hours, setHours] = useState<Record<string, number>>({});
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -99,7 +98,6 @@ export function UploadForm({
     setTypeId(lockedTypeId);
     setPeriod("");
     setDays([]);
-    setHours({});
     setFile(null);
     setPreview(null);
     if (fileRef.current) fileRef.current.value = "";
@@ -132,7 +130,6 @@ export function UploadForm({
         return;
       }
       days.forEach((day) => formData.append("days[]", day));
-      Object.entries(hours).forEach(([day, value]) => formData.append(`day_hours[${day}]`, String(value)));
     }
 
     formData.append("file", file);
@@ -234,11 +231,7 @@ export function UploadForm({
             <div className="col-12">
               <DtrDaysPicker
                 days={days}
-                hours={hours}
-                onChange={(nextDays, nextHours) => {
-                  setDays(nextDays);
-                  setHours(nextHours);
-                }}
+                onChange={(nextDays) => setDays(nextDays)}
                 taken={takenDays}
                 contractStart={contractStart}
                 contractEnd={contractEnd}

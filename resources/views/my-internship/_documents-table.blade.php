@@ -39,8 +39,8 @@
                             </td>
                             <td style="font-size: 0.82rem;">{{ $document->created_at?->format('M d, Y') }}</td>
                             <td>
-                                <span class="badge bg-{{ $document->review_status === 'approved' ? 'success' : ($document->review_status === 'rejected' ? 'danger' : 'warning') }}">
-                                    {{ ucfirst($document->review_status) }}
+                                <span class="badge bg-{{ in_array($document->review_status, ['approved'], true) ? 'success' : ($document->review_status === 'pending_admin' ? 'info text-dark' : (in_array($document->review_status, ['returned_to_peso', 'returned_to_intern', 'rejected'], true) ? 'danger' : 'warning text-dark')) }}">
+                                    {{ \App\Models\InternDocument::statusLabel($document->review_status) }}
                                 </span>
                             </td>
                             <td style="font-size: 0.82rem;">{{ $document->review_remarks ?? '—' }}</td>
@@ -51,7 +51,50 @@
                                 <a class="btn btn-sm btn-outline-secondary" href="{{ route('intern-documents.download', $document) }}" title="Download">
                                     <i class="fas fa-download"></i>
                                 </a>
+                                @if($document->review_status === \App\Models\InternDocument::STATUS_RETURNED_TO_INTERN)
+                                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="collapse"
+                                            data-bs-target="#resubmit-{{ $document->id }}" title="Correct and resubmit">
+                                        <i class="fas fa-rotate-right"></i> Resubmit
+                                    </button>
+                                @endif
                             </td>
+                        </tr>
+                        @if($document->review_status === \App\Models\InternDocument::STATUS_RETURNED_TO_INTERN)
+                            <tr class="collapse" id="resubmit-{{ $document->id }}">
+                                <td colspan="7" class="bg-body-tertiary">
+                                    <form method="POST" action="{{ route('intern-documents.resubmit', $document) }}" enctype="multipart/form-data" class="row g-2">
+                                        @csrf
+                                        <div class="col-12">
+                                            <div class="alert alert-warning small py-2 mb-0">
+                                                <strong>Corrections required:</strong>
+                                                {{ $document->peso_remarks ?? $document->admin_remarks ?? $document->review_remarks ?? 'See the reviewer remarks.' }}
+                                            </div>
+                                        </div>
+                                        @if($document->documentType?->code === 'DTR')
+                                            @foreach($document->dtrDays as $day)
+                                                <input type="hidden" name="days[]" value="{{ $day->work_date->format('Y-m-d') }}">
+                                            @endforeach
+                                            <div class="col-md-6">
+                                                <label class="form-label small mb-1">Replacement scan (optional)</label>
+                                                <input type="file" name="file" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.csv">
+                                            </div>
+                                        @else
+                                            <div class="col-md-6">
+                                                <label class="form-label small mb-1">Replacement file <span class="text-danger">*</span></label>
+                                                <input type="file" name="file" class="form-control form-control-sm" required accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.csv">
+                                            </div>
+                                        @endif
+                                        <div class="col-md-6">
+                                            <label class="form-label small mb-1">Note to the PESO manager (optional)</label>
+                                            <input type="text" name="remarks" class="form-control form-control-sm" maxlength="2000">
+                                        </div>
+                                        <div class="col-12">
+                                            <button class="btn btn-sm btn-brand" type="submit"><i class="fas fa-paper-plane me-1"></i> Resubmit for PESO review</button>
+                                        </div>
+                                    </form>
+                                </td>
+                            </tr>
+                        @endif
                         </tr>
                     @empty
                         <tr><td colspan="7" class="text-center text-muted py-4">{{ $emptyMessage }}</td></tr>

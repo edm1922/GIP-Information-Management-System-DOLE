@@ -2,28 +2,37 @@
 
 import { useState } from "react";
 
+import { DocumentHistoryModal } from "@/components/documents/DocumentHistoryModal";
 import { DtrDaysTrigger } from "@/components/documents/DtrDaysViewer";
+import { DtrHoursAssignmentModal } from "@/components/documents/DtrHoursAssignmentModal";
 import { useDocumentDownload, useDocumentPreview } from "@/components/documents/DocumentPreview";
 import { Modal } from "@/components/ui/Modal";
 import { ApiError, api } from "@/lib/api";
-import { formatDateTime, reviewBadgeClass, ucfirst } from "@/lib/format";
+import { useAuth } from "@/lib/auth";
+import { formatDateTime, reviewBadgeClass, reviewStatusLabel } from "@/lib/format";
 import type { InternDocument } from "@/lib/types";
 
 interface ReviewTableProps {
   documents: InternDocument[];
-  /** Shown as a column on the all-documents list; hidden inside an intern folder. */
   showIntern?: boolean;
   emptyMessage?: string;
   canReview: boolean;
-  /** Fallback name for the reject dialog when the row has no nested intern. */
   internName?: string;
   onReviewed?: () => void | Promise<void>;
   footer?: React.ReactNode;
 }
 
+interface ReturnTarget {
+  document: InternDocument;
+  kind: "peso-return" | "admin-return";
+}
+
 /**
- * Review table shared by the documents list, the intern folder and the intern
- * profile — the SPA counterpart of `intern-documents/_review-table.blade.php`.
+ * Review table shared by the documents list, intern folder and intern profile.
+ *
+ * PESO managers move a submission from pending_peso to pending_admin (or send
+ * it back to the intern). Admins assign per-day hours and perform the final
+ * approval / return. All actions are enforced again on the backend.
  */
 export function ReviewTable({
   documents,
@@ -34,41 +43,45 @@ export function ReviewTable({
   onReviewed,
   footer,
 }: ReviewTableProps) {
+  const { isAdmin, isPesoManager } = useAuth();
   const { open } = useDocumentPreview();
   const download = useDocumentDownload();
 
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [rejecting, setRejecting] = useState<InternDocument | null>(null);
+  const [returning, setReturning] = useState<ReturnTarget | null>(null);
   const [remarks, setRemarks] = useState("");
   const [remarksError, setRemarksError] = useState<string | null>(null);
+  const [hoursDocument, setHoursDocument] = useState<InternDocument | null>(null);
+  const [historyDocument, setHistoryDocument] = useState<InternDocument | null>(null);
 
-  const review = async (document: InternDocument, decision: "approved" | "rejected", reviewRemarks?: string) => {
+  const transition = async (document: InternDocument, action: string, payload: Record<string, unknown> = {}) => {
     setBusyId(document.id);
     setError(null);
     try {
-      await api.patch(`/api/v1/intern-documents/${document.id}/review`, {
-        decision,
-        review_remarks: reviewRemarks ?? null,
-      });
-      setRejecting(null);
-      setRemarks("");
+      await api.post(`/api/v1/intern-documents/${document.id}/${action}`, payload);
       await onReviewed?.();
     } catch (requestError) {
-      setError(requestError instanceof ApiError ? requestError.message : "The document could not be updated.");
+      if (requestError instanceof ApiError && Object.keys(requestError.errors).length > 0) {
+        setError(Object.values(requestError.errors).flat().join(" "));
+      } else {
+        setError(requestError instanceof ApiError ? requestError.message : "The document could not be updated.");
+      }
     } finally {
       setBusyId(null);
     }
   };
 
-  const submitRejection = async () => {
-    if (!rejecting) return;
+  const submitReturn = async () => {
+    if (!returning) return;
     if (remarks.trim().length < 10) {
-      setRemarksError("Please explain in detail why this document is being rejected (at least 10 characters).");
+      setRemarksError("Please explain what needs to be corrected (at least 10 characters).");
       return;
     }
     setRemarksError(null);
-    await review(rejecting, "rejected", remarks.trim());
+    await transition(returning.document, returning.kind, { remarks: remarks.trim() });
+    setReturning(null);
+    setRemarks("");
   };
 
   const colspan = showIntern ? 7 : 6;
@@ -105,10 +118,11 @@ export function ReviewTable({
               ) : (
                 documents.map((document) => {
                   const outsideDays = document.outside_contract_days_count ?? 0;
-                  const internLabel =
-                    document.intern?.name ??
-                    internName ??
-                    (showIntern ? "—" : undefined);
+                  const internLabel = document.intern?.name ?? internName ?? (showIntern ? "—" : undefined);
+                  const status = document.review_status;
+                  const canPesoApprove = canReview && isPesoManager && status === "pending_peso";
+                  const canPesoReturn = canReview && isPesoManager && ["pending_peso", "returned_to_peso"].includes(status);
+                  const canAdmin = canReview && isAdmin && status === "pending_admin";
 
                   return (
                     <tr key={document.id}>
@@ -142,7 +156,7 @@ export function ReviewTable({
                         {outsideDays > 0 && (
                           <span
                             className="badge bg-warning text-dark ms-1"
-                            title="Some claimed days fall outside the intern's contract dates — verify against the DTR scan."
+                            title="Some claimed days fall outside the intern's contract dates — verify against the scan."
                           >
                             <i className="fas fa-triangle-exclamation me-1" />
                             {outsideDays} outside contract
@@ -151,9 +165,12 @@ export function ReviewTable({
                       </td>
                       <td style={{ fontSize: "0.82rem" }}>{formatDateTime(document.created_at)}</td>
                       <td>
-                        <span className={`badge ${reviewBadgeClass(document.review_status)}`}>
-                          {ucfirst(document.review_status)}
-                        </span>
+                        <span className={`badge ${reviewBadgeClass(status)}`}>{reviewStatusLabel(status)}</span>
+                        {status === "pending_admin" && (
+                          <div className="small text-muted mt-1">
+                            {(document.dtr_days ?? []).some((day) => day.hours === null) ? "Hours pending" : "Hours assigned"}
+                          </div>
+                        )}
                       </td>
                       <td className="text-end text-nowrap">
                         <button
@@ -171,30 +188,73 @@ export function ReviewTable({
                           onClick={() => download(document)}
                         >
                           <i className="fas fa-download" />
+                        </button>{" "}
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-secondary"
+                          title="Approval & hours history"
+                          onClick={() => setHistoryDocument(document)}
+                        >
+                          <i className="fas fa-clock-rotate-left" />
                         </button>
-                        {canReview && document.review_status === "pending" && (
+                        {canPesoApprove && (
                           <>
                             {" "}
                             <button
                               type="button"
                               className="btn btn-sm btn-outline-success"
-                              title="Approve"
+                              title="Approve and forward to Admin"
                               disabled={busyId === document.id}
-                              onClick={() => review(document, "approved")}
+                              onClick={() => transition(document, "peso-approve")}
                             >
-                              <i className={`fas ${busyId === document.id ? "fa-circle-notch fa-spin" : "fa-check"}`} />
-                            </button>{" "}
+                              <i className={`fas ${busyId === document.id ? "fa-circle-notch fa-spin" : "fa-check"}`} /> To Admin
+                            </button>
+                          </>
+                        )}
+                        {canAdmin && (
+                          <>
+                            {" "}
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-primary"
+                              title="Assign working hours"
+                              onClick={() => setHoursDocument(document)}
+                            >
+                              <i className="fas fa-clock" /> Hours
+                            </button>
+                          </>
+                        )}
+                        {canPesoReturn && (
+                          <>
+                            {" "}
                             <button
                               type="button"
                               className="btn btn-sm btn-outline-danger"
-                              title="Reject with a written explanation"
+                              title="Send back to the intern for correction"
                               onClick={() => {
-                                setRejecting(document);
+                                setReturning({ document, kind: "peso-return" });
+                                setRemarks(document.admin_remarks ?? "");
+                                setRemarksError(null);
+                              }}
+                            >
+                              <i className="fas fa-rotate-left" /> Send back
+                            </button>
+                          </>
+                        )}
+                        {canAdmin && (
+                          <>
+                            {" "}
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-danger"
+                              title="Return to the PESO manager with remarks"
+                              onClick={() => {
+                                setReturning({ document, kind: "admin-return" });
                                 setRemarks("");
                                 setRemarksError(null);
                               }}
                             >
-                              <i className="fas fa-times" />
+                              <i className="fas fa-rotate-left" /> Return
                             </button>
                           </>
                         )}
@@ -211,58 +271,55 @@ export function ReviewTable({
       </div>
 
       <Modal
-        show={rejecting !== null}
-        onClose={() => setRejecting(null)}
-        title={
-          <span>
-            <i className="fas fa-times-circle text-danger me-2" />
-            Reject document
-            <span className="d-block text-muted small fw-normal">
-              {[rejecting?.intern?.name ?? internName, rejecting?.document_type?.name, rejecting?.dtr_summary ?? rejecting?.document_period]
-                .filter(Boolean)
-                .join(" · ")}
-            </span>
-          </span>
-        }
+        show={returning !== null}
+        onClose={() => setReturning(null)}
+        title={returning?.kind === "admin-return" ? "Return to PESO Manager" : "Send back to Intern"}
         footer={
           <>
-            <button type="button" className="btn btn-outline-secondary" onClick={() => setRejecting(null)}>
+            <button type="button" className="btn btn-outline-secondary" onClick={() => setReturning(null)}>
               Cancel
             </button>
-            <button
-              type="button"
-              className="btn btn-danger"
-              disabled={busyId === rejecting?.id}
-              onClick={submitRejection}
-            >
-              <i className="fas fa-times me-1" /> Reject document
+            <button type="button" className="btn btn-danger" disabled={busyId !== null} onClick={submitReturn}>
+              {busyId !== null ? <i className="fas fa-circle-notch fa-spin me-1" /> : null}
+              {returning?.kind === "admin-return" ? "Return to PESO" : "Send back to Intern"}
             </button>
           </>
         }
       >
-        <label className="form-label" htmlFor="reject-remarks">
-          Why is this document being rejected? <span className="text-danger">*</span>
-        </label>
+        <p className="text-muted small">
+          {returning?.kind === "admin-return"
+            ? "Explain what the PESO manager / intern needs to correct. The PESO manager will see these remarks and can forward them to the intern."
+            : "Review the Admin remarks (shown below) and send the submission back to the intern with any additional instructions."}
+        </p>
+        <label className="form-label">Remarks</label>
         <textarea
-          id="reject-remarks"
-          className={`form-control ${remarksError ? "is-invalid" : ""}`}
-          rows={5}
-          maxLength={2000}
+          className="form-control"
+          rows={4}
+          minLength={10}
           value={remarks}
-          onChange={(event) => {
-            setRemarks(event.target.value);
-            setRemarksError(null);
-          }}
-          placeholder="Explain in detail what is wrong and what the intern needs to correct — e.g. which days do not match the attached DTR, missing pages, unreadable scan, hours exceeding the claimed days…"
+          onChange={(event) => setRemarks(event.target.value)}
+          placeholder="Explain what needs to be corrected…"
         />
-        {remarksError ? (
-          <div className="text-danger small mt-1">{remarksError}</div>
-        ) : (
-          <div className="form-text">
-            The intern receives this explanation in their notification and can read it on their document list.
+        {returning?.kind === "peso-return" && (returning.document.admin_remarks ?? "").length > 0 && (
+          <div className="alert alert-warning small mt-2 mb-0">
+            <strong>Admin remarks:</strong> {returning.document.admin_remarks}
           </div>
         )}
+        {remarksError && <div className="text-danger small mt-1">{remarksError}</div>}
       </Modal>
+
+      <DtrHoursAssignmentModal
+        document={hoursDocument}
+        show={hoursDocument !== null}
+        onClose={() => setHoursDocument(null)}
+        onChanged={async () => onReviewed?.()}
+      />
+
+      <DocumentHistoryModal
+        documentId={historyDocument?.id ?? null}
+        show={historyDocument !== null}
+        onClose={() => setHistoryDocument(null)}
+      />
     </>
   );
 }

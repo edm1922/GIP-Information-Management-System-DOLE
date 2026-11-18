@@ -20,7 +20,7 @@ class DtrDayResource extends JsonResource
             'document_id' => $this->document_id,
             'intern_id' => $this->intern_id,
             'work_date' => $this->work_date?->format('Y-m-d'),
-            'hours' => (float) $this->hours,
+            'hours' => $this->hours === null ? null : (float) $this->hours,
         ];
     }
 }

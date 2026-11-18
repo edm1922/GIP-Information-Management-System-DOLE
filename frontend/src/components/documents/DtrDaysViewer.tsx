@@ -60,12 +60,16 @@ function ClaimedMonth({ year, monthIndex, days }: { year: number; monthIndex: nu
             className={cell.classes}
             title={
               cell.claim
-                ? `${cell.key} · ${formatHours(cell.claim.hours)}${cell.claim.outside_contract ? " · outside contract" : ""}`
+                ? `${cell.key} · ${cell.claim.hours !== null ? formatHours(cell.claim.hours) : "hours pending"}${cell.claim.outside_contract ? " · outside contract" : ""}`
                 : undefined
             }
           >
             <span>{cell.day}</span>
-            {cell.claim && <small className="dtr-view-hours">{formatHours(cell.claim.hours)}</small>}
+            {cell.claim && (
+              <small className="dtr-view-hours">
+                {cell.claim.hours !== null ? formatHours(cell.claim.hours) : "—"}
+              </small>
+            )}
           </div>
         ))}
       </div>
@@ -83,8 +87,10 @@ export function DtrDaysTrigger({ days, title }: { days: DtrDayClaim[] | undefine
 
   if (claims.length === 0) return null;
 
-  const totalHours = claims.reduce((sum, day) => sum + (Number(day.hours) || 0), 0);
+  const assignedHours = claims.filter((day) => day.hours !== null);
+  const totalHours = assignedHours.reduce((sum, day) => sum + (Number(day.hours) || 0), 0);
   const outside = claims.filter((day) => day.outside_contract).length;
+  const hoursLabel = assignedHours.length === 0 ? "hours pending Admin assignment" : `${formatHours(Math.round(totalHours * 10) / 10)}`;
 
   const groups = new Map<string, DtrDayClaim[]>();
   claims.forEach((day) => {
@@ -112,7 +118,7 @@ export function DtrDaysTrigger({ days, title }: { days: DtrDayClaim[] | undefine
           <span>
             {title}
             <span className="d-block text-muted small fw-normal">
-              {claims.length} day(s) · {formatHours(Math.round(totalHours * 10) / 10)}
+              {claims.length} day(s) · {hoursLabel}
               {outside ? ` · ${outside} outside contract` : ""}
             </span>
           </span>

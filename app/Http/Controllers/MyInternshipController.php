@@ -96,7 +96,7 @@ class MyInternshipController extends Controller
                 $status = match (true) {
                     $latest === null => 'missing',
                     $latest->review_status === 'approved' => 'approved',
-                    $latest->review_status === 'rejected' => 'rejected',
+                    in_array($latest->review_status, ['returned_to_peso', 'returned_to_intern', 'rejected'], true) => 'returned',
                     default => 'pending',
                 };
 

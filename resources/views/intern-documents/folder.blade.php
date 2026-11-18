@@ -70,7 +70,7 @@
                     <div class="text-muted" style="font-size: 0.72rem; text-transform: uppercase; font-weight: 700;">Documents</div>
                     <div class="fw-semibold">
                         {{ $dtrs->count() }} DTR · {{ $files->count() }} 201 files
-                        @php $pending = $dtrs->concat($files)->where('review_status', 'pending')->count(); @endphp
+                        @php $pending = $dtrs->concat($files)->whereIn('review_status', ['pending_peso', 'pending_admin', 'returned_to_peso', 'returned_to_intern'])->count(); @endphp
                         @if($pending > 0)
                             <span class="badge bg-warning text-dark ms-1">{{ $pending }} pending</span>
                         @endif
@@ -103,5 +103,4 @@
     ])
 
     @include('intern-documents._dtr-days-viewer')
-    @include('intern-documents._reject-modal')
-</x-app-layout>
+    </x-app-layout>

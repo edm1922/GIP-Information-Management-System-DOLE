@@ -115,8 +115,15 @@ class InternWorkCalendar
             ->filter()
             ->unique();
 
+        $mapped = $statuses->map(fn ($status) => match ($status) {
+            'approved' => 'approved',
+            'pending_peso', 'pending_admin', 'pending' => 'pending',
+            'returned_to_peso', 'returned_to_intern', 'rejected' => 'rejected',
+            default => null,
+        })->filter();
+
         foreach (['approved', 'pending', 'rejected'] as $status) {
-            if ($statuses->contains($status)) {
+            if ($mapped->contains($status)) {
                 return $status;
             }
         }

@@ -22,6 +22,35 @@ class InternDocument extends Model
 {
     use SoftDeletes;
 
+    public const STATUS_PENDING_PESO = 'pending_peso';
+    public const STATUS_PENDING_ADMIN = 'pending_admin';
+    public const STATUS_RETURNED_TO_PESO = 'returned_to_peso';
+    public const STATUS_RETURNED_TO_INTERN = 'returned_to_intern';
+    public const STATUS_APPROVED = 'approved';
+
+    /** Workflow statuses used by new submissions. */
+    public const WORKFLOW_STATUSES = [
+        self::STATUS_PENDING_PESO,
+        self::STATUS_PENDING_ADMIN,
+        self::STATUS_RETURNED_TO_PESO,
+        self::STATUS_RETURNED_TO_INTERN,
+        self::STATUS_APPROVED,
+    ];
+
+    public static function statusLabel(string $status): string
+    {
+        return match ($status) {
+            self::STATUS_PENDING_PESO => 'Pending PESO Review',
+            self::STATUS_PENDING_ADMIN => 'Pending Admin Approval',
+            self::STATUS_RETURNED_TO_PESO => 'Returned to PESO Manager',
+            self::STATUS_RETURNED_TO_INTERN => 'Returned to Intern',
+            self::STATUS_APPROVED => 'Approved',
+            'pending' => 'Pending Review (legacy)',
+            'rejected' => 'Rejected (legacy)',
+            default => ucfirst(str_replace('_', ' ', $status)),
+        };
+    }
+
     protected $table = 'documents';
 
     protected $fillable = [
@@ -40,6 +69,14 @@ class InternDocument extends Model
         'reviewed_by',
         'reviewed_at',
         'review_remarks',
+        'peso_reviewed_by',
+        'peso_reviewed_at',
+        'peso_remarks',
+        'admin_reviewed_by',
+        'admin_reviewed_at',
+        'admin_remarks',
+        'hours_assigned_by',
+        'hours_assigned_at',
         'metadata',
     ];
 
@@ -47,6 +84,9 @@ class InternDocument extends Model
     {
         return [
             'reviewed_at' => 'datetime',
+            'peso_reviewed_at' => 'datetime',
+            'admin_reviewed_at' => 'datetime',
+            'hours_assigned_at' => 'datetime',
             'metadata' => 'array',
         ];
     }
@@ -91,16 +131,16 @@ class InternDocument extends Model
 
         $sorted = $days->sortBy(fn (DtrDay $day) => $day->work_date->timestamp);
         $count = $sorted->count();
-        $hours = (float) $sorted->sum('hours');
+        $hasHours = $sorted->contains(fn (DtrDay $day) => $day->hours !== null);
+        $hours = $hasHours ? (float) $sorted->sum(fn (DtrDay $day) => (float) $day->hours) : 0.0;
 
         return sprintf(
-            '%s – %s · %d %s · %s %s',
+            '%s – %s · %d %s%s',
             $sorted->first()->work_date->format('M d, Y'),
             $sorted->last()->work_date->format('M d, Y'),
             $count,
             $count === 1 ? 'day' : 'days',
-            rtrim(rtrim(number_format($hours, 1, '.', ''), '0'), '.'),
-            'hrs'
+            $hasHours ? ' · '.rtrim(rtrim(number_format($hours, 1, '.', ''), '0'), '.').' hrs' : ''
         );
     }
 
@@ -155,7 +195,7 @@ class InternDocument extends Model
 
                 return [
                     'date' => $date->format('Y-m-d'),
-                    'hours' => (float) $day->hours,
+                    'hours' => $day->hours === null ? null : (float) $day->hours,
                     'outside_contract' => ($start && $date->lessThan($start)) || ($end && $date->greaterThan($end)),
                 ];
             })
@@ -173,8 +213,31 @@ class InternDocument extends Model
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
+    public function pesoReviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'peso_reviewed_by');
+    }
+
+    public function adminReviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'admin_reviewed_by');
+    }
+
+    public function hoursAssignedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'hours_assigned_by');
+    }
+
+    public function reviewEvents(): HasMany
+    {
+        return $this->hasMany(InternDocumentReviewEvent::class, 'document_id')->orderBy('created_at');
+    }
+
     public function isPendingReview(): bool
     {
-        return $this->review_status === 'pending';
+        return in_array($this->review_status, [
+            self::STATUS_PENDING_PESO,
+            self::STATUS_PENDING_ADMIN,
+        ], true);
     }
 }

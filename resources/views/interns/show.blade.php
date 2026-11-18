@@ -136,6 +136,5 @@
     </div>
 
     @include('intern-documents._dtr-days-viewer')
-    @include('intern-documents._reject-modal')
-    @include('interns._confirm-modal')
+        @include('interns._confirm-modal')
 </x-app-layout>

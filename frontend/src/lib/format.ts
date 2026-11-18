@@ -70,9 +70,31 @@ export function formatHours(value: number | string | null | undefined): string {
   return `${formatNumber(value)}h`;
 }
 
+export function reviewStatusLabel(status: string | null | undefined): string {
+  switch (status) {
+    case "pending_peso":
+      return "Pending PESO Review";
+    case "pending_admin":
+      return "Pending Admin Approval";
+    case "returned_to_peso":
+      return "Returned to PESO Manager";
+    case "returned_to_intern":
+      return "Returned to Intern";
+    case "approved":
+      return "Approved";
+    case "pending":
+      return "Pending Review (legacy)";
+    case "rejected":
+      return "Rejected (legacy)";
+    default:
+      return status ? status.replace(/_/g, " ") : "Unknown";
+  }
+}
+
 export function reviewBadgeClass(status: string): string {
   if (status === "approved") return "bg-success";
-  if (status === "rejected") return "bg-danger";
+  if (status === "pending_admin") return "bg-info text-dark";
+  if (status === "returned_to_peso" || status === "returned_to_intern" || status === "rejected") return "bg-danger";
   return "bg-warning text-dark";
 }
 

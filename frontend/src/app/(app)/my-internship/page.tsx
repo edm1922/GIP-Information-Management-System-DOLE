@@ -165,6 +165,10 @@ export default function MyInternshipPage() {
         title="My Daily Time Records"
         documents={documents}
         emptyMessage="You have not submitted any DTRs yet."
+        takenDays={data.taken_days ?? []}
+        contractStart={intern.contract_start_date}
+        contractEnd={intern.contract_end_date}
+        onResubmitted={load}
       />
     </>
   );

@@ -70,6 +70,10 @@ class StoreInternDocumentRequest extends FormRequest
 
             $this->validateFileType($validator);
 
+            if ($this->user()?->isIntern() && ($this->filled('hours') || $this->filled('day_hours'))) {
+                $validator->errors()->add('hours', 'Working hours are assigned by the Admin after review and must not be submitted by interns.');
+            }
+
             if ($type->code !== 'DTR') {
                 return;
             }

@@ -153,6 +153,26 @@ Route::prefix('v1')->name('api.v1.')->middleware('throttle:120,1')->group(functi
             ->middleware('can:download,document')
             ->withTrashed()
             ->name('intern-documents.download');
+        Route::get('/intern-documents/{document}/history', [InternDocumentController::class, 'history'])
+            ->middleware('can:view,document')
+            ->name('intern-documents.history');
+        Route::patch('/intern-documents/{document}/hours', [InternDocumentController::class, 'saveHours'])
+            ->middleware('role:admin')
+            ->name('intern-documents.hours');
+        Route::post('/intern-documents/{document}/peso-approve', [InternDocumentController::class, 'pesoApprove'])
+            ->middleware('role:peso_manager')
+            ->name('intern-documents.peso-approve');
+        Route::post('/intern-documents/{document}/peso-return', [InternDocumentController::class, 'pesoReturn'])
+            ->middleware('role:peso_manager')
+            ->name('intern-documents.peso-return');
+        Route::post('/intern-documents/{document}/admin-approve', [InternDocumentController::class, 'adminApprove'])
+            ->middleware('role:admin')
+            ->name('intern-documents.admin-approve');
+        Route::post('/intern-documents/{document}/admin-return', [InternDocumentController::class, 'adminReturn'])
+            ->middleware('role:admin')
+            ->name('intern-documents.admin-return');
+        Route::post('/intern-documents/{document}/resubmit', [InternDocumentController::class, 'resubmit'])
+            ->name('intern-documents.resubmit');
         Route::patch('/intern-documents/{document}/review', [InternDocumentController::class, 'review'])
             ->middleware('role:admin,peso_manager')
             ->name('intern-documents.review');

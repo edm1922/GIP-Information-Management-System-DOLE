@@ -12,7 +12,7 @@ beforeEach(function () {
     Storage::fake('local');
 });
 
-it('uploads a DTR and credits hours only after API approval', function () {
+it('uploads a DTR as pending PESO review and credits hours only after the full workflow', function () {
     $type = apiInternDocumentType('DTR');
     $user = User::factory()->intern()->create();
     $intern = apiCreateIntern($user);
@@ -22,34 +22,30 @@ it('uploads a DTR and credits hours only after API approval', function () {
     $response = $this->actingAs($user)->post('/api/v1/intern-documents', [
         'document_type_id' => $type->id,
         'days' => $worked,
-        'hours_per_day' => 8,
         'file' => UploadedFile::fake()->create('dtr.pdf', 50, 'application/pdf'),
     ]);
 
     $response->assertCreated()
-        ->assertJsonPath('document.review_status', 'pending');
+        ->assertJsonPath('document.review_status', InternDocument::STATUS_PENDING_PESO);
 
     expect($intern->fresh()->rendered_hours)->toBe(0.0)
-        ->and($intern->fresh()->pending_hours)->toBe(16.0);
+        ->and($intern->fresh()->pending_hours)->toBe(0.0);
 
     $document = InternDocument::firstOrFail();
 
     expect((int) $document->intern_id)->toBe((int) $intern->id)
         ->and($document->file_path)->toStartWith('intern-docs/'.$intern->id.'/')
-        ->and($document->dtrDays()->count())->toBe(2);
+        ->and($document->dtrDays()->count())->toBe(2)
+        ->and($document->dtrDays()->whereNotNull('hours')->count())->toBe(0);
 
     Storage::disk('local')->assertExists($document->file_path);
 
-    $admin = User::factory()->admin()->create();
+    [$admin, $peso] = apiApproveInternDocumentThroughWorkflow($document->fresh());
 
-    $this->actingAs($admin)
-        ->patchJson("/api/v1/intern-documents/{$document->id}/review", [
-            'decision' => 'approved',
-        ])
-        ->assertOk()
-        ->assertJsonPath('document.review_status', 'approved');
-
-    expect($intern->fresh()->rendered_hours)->toBe(16.0);
+    expect($document->fresh()->review_status)->toBe(InternDocument::STATUS_APPROVED)
+        ->and($document->fresh()->peso_reviewed_by)->toBe($peso->id)
+        ->and($document->fresh()->admin_reviewed_by)->toBe($admin->id)
+        ->and($intern->fresh()->rendered_hours)->toBe(16.0);
 });
 
 it('rejects a DTR upload without selected working days', function () {
@@ -66,7 +62,7 @@ it('rejects a DTR upload without selected working days', function () {
     expect(InternDocument::count())->toBe(0);
 });
 
-it('requires review remarks when rejecting a document', function () {
+it('requires admin remarks when returning a document to the PESO manager', function () {
     $type = apiInternDocumentType('AR');
     $internUser = User::factory()->intern()->create();
     apiCreateIntern($internUser);
@@ -77,15 +73,19 @@ it('requires review remarks when rejecting a document', function () {
     ])->assertCreated();
 
     $document = InternDocument::firstOrFail();
+    $peso = User::factory()->pesoManager()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs(User::factory()->admin()->create())
-        ->patchJson("/api/v1/intern-documents/{$document->id}/review", [
-            'decision' => 'rejected',
-        ])
+    $this->actingAs($peso)
+        ->postJson("/api/v1/intern-documents/{$document->id}/peso-approve")
+        ->assertOk();
+
+    $this->actingAs($admin)
+        ->postJson("/api/v1/intern-documents/{$document->id}/admin-return", [])
         ->assertStatus(422)
-        ->assertJsonValidationErrors('review_remarks');
+        ->assertJsonValidationErrors('remarks');
 
-    expect($document->fresh()->review_status)->toBe('pending');
+    expect($document->fresh()->review_status)->toBe(InternDocument::STATUS_PENDING_ADMIN);
 });
 
 it('prevents an intern from downloading another intern document', function () {
@@ -117,7 +117,6 @@ it('previews documents inline for the owner and admins only', function () {
     $this->actingAs($owner)->post('/api/v1/intern-documents', [
         'document_type_id' => $type->id,
         'days' => [now()->subDay()->format('Y-m-d')],
-        'hours_per_day' => 8,
         'file' => UploadedFile::fake()->create('report.pdf', 30, 'application/pdf'),
     ])->assertCreated();
 
@@ -150,13 +149,15 @@ it('blocks interns from reviewing documents and browsing folders', function () {
         'system_filename' => 'example.pdf',
         'mime_type' => 'application/pdf',
         'status' => 'active',
-        'review_status' => 'pending',
+        'review_status' => InternDocument::STATUS_PENDING_PESO,
     ]);
 
     $this->actingAs($intern)
-        ->patchJson("/api/v1/intern-documents/{$document->id}/review", [
-            'decision' => 'approved',
-        ])
+        ->postJson("/api/v1/intern-documents/{$document->id}/peso-approve")
+        ->assertForbidden();
+
+    $this->actingAs($intern)
+        ->patchJson("/api/v1/intern-documents/{$document->id}/hours", ['day_hours' => ['2026-01-01' => 8]])
         ->assertForbidden();
 
     $this->actingAs($intern)
@@ -166,7 +167,7 @@ it('blocks interns from reviewing documents and browsing folders', function () {
 
 it('lists and filters documents for admins and peso managers', function () {
     $this->actingAs(User::factory()->admin()->create())
-        ->getJson('/api/v1/intern-documents?review_status=pending')
+        ->getJson('/api/v1/intern-documents?review_status=pending_peso')
         ->assertOk()
         ->assertJsonStructure(['documents' => ['data']]);
 

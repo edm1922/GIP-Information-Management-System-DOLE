@@ -18,7 +18,7 @@ function checklistIcon(item: ChecklistItem): { icon: string; color: string; labe
         label: "Submitted — awaiting review",
         labelColor: "text-warning",
       };
-    case "rejected":
+    case "returned":
       return {
         icon: "fas fa-times-circle",
         color: "text-danger",
@@ -155,6 +155,7 @@ export default function MyFilesPage() {
         title="My 201 Files"
         documents={documents}
         emptyMessage="You have not submitted any 201 files yet."
+        onResubmitted={load}
       />
     </>
   );

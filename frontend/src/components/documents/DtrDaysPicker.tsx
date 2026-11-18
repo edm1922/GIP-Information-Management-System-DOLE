@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Modal } from "@/components/ui/Modal";
-import { formatHours, formatNumber } from "@/lib/format";
 
 const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
@@ -32,7 +31,6 @@ interface Cell {
   weekend: boolean;
   today: boolean;
   selected: boolean;
-  hours: number | null;
   taken: boolean;
   outsideContract: boolean;
   disabled: boolean;
@@ -40,8 +38,7 @@ interface Cell {
 
 interface DtrDaysPickerProps {
   days: string[];
-  hours: Record<string, number>;
-  onChange: (days: string[], hours: Record<string, number>) => void;
+  onChange: (days: string[]) => void;
   /** Days already claimed by another DTR — blocked. */
   taken: string[];
   contractStart: string | null;
@@ -49,25 +46,18 @@ interface DtrDaysPickerProps {
 }
 
 /**
- * Working-day picker for DTR uploads. Parity with `public/js/dtr-picker.js`:
- * the selected days are the record, the attached scan is the evidence.
+ * Working-day picker for DTR submissions.
+ *
+ * Interns only choose dates. Per-day working hours are assigned by an Admin
+ * during final review, so this component deliberately has no hours input and
+ * no days/hours summary.
  */
-export function DtrDaysPicker({ days, hours, onChange, taken, contractStart, contractEnd }: DtrDaysPickerProps) {
+export function DtrDaysPicker({ days, onChange, taken, contractStart, contractEnd }: DtrDaysPickerProps) {
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
   });
-  const [entryKey, setEntryKey] = useState<string | null>(null);
-  const [entryHours, setEntryHours] = useState(8);
-  const entryInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (entryKey) {
-      entryInputRef.current?.focus();
-      entryInputRef.current?.select();
-    }
-  }, [entryKey]);
 
   const todayKey = keyOf(new Date());
   const takenSet = useMemo(() => new Set(taken), [taken]);
@@ -93,62 +83,48 @@ export function DtrDaysPicker({ days, hours, onChange, taken, contractStart, con
         weekend: date.getDay() === 0 || date.getDay() === 6,
         today: key === todayKey,
         selected: selectedSet.has(key),
-        hours: hours[key] ?? null,
         taken: takenSet.has(key),
         outsideContract,
-        // Only future and already-claimed days are hard-blocked.
         disabled: !inMonth || future || takenSet.has(key),
       };
     });
-  }, [cursor, hours, selectedSet, takenSet, todayKey, contractStart, contractEnd]);
+  }, [cursor, selectedSet, takenSet, todayKey, contractStart, contractEnd]);
 
   const monthStats = useMemo(() => {
-    const weekdays = grid.filter((cell) => cell.inMonth && !cell.weekend).map((cell) => cell.key);
+    const weekdays = grid.filter((cell) => cell.inMonth && !cell.weekend && !cell.taken).map((cell) => cell.key);
     return {
       weekdays: weekdays.length,
       covered: weekdays.filter((key) => selectedSet.has(key)).length,
     };
   }, [grid, selectedSet]);
 
-  const totalHours = days.reduce((sum, day) => sum + (Number(hours[day]) || 0), 0);
   const monthHasSelectable = grid.some((cell) => cell.inMonth && !cell.disabled);
   const monthLabel = cursor.toLocaleString("en-US", { month: "long", year: "numeric" });
   const contractLabel =
     contractStart || contractEnd ? `${contractStart ?? "—"} to ${contractEnd ?? "—"}` : null;
 
-  const saveEntry = () => {
-    if (!entryKey) return;
-    const value = Math.min(24, Math.max(0.1, Math.round((Number(entryHours) || 8) * 10) / 10));
-
-    const nextDays = selectedSet.has(entryKey) ? days : [...days, entryKey];
-    onChange(nextDays, { ...hours, [entryKey]: value });
-    setEntryKey(null);
-  };
-
-  const removeEntry = () => {
-    if (!entryKey) return;
-    const nextHours = { ...hours };
-    delete nextHours[entryKey];
-    onChange(days.filter((day) => day !== entryKey), nextHours);
-    setEntryKey(null);
+  const toggleDay = (key: string) => {
+    if (selectedSet.has(key)) {
+      onChange(days.filter((day) => day !== key));
+    } else {
+      onChange([...days, key]);
+    }
   };
 
   const addWeekdays = () => {
     const nextDays = [...days];
-    const nextHours = { ...hours };
     grid.forEach((cell) => {
       if (!cell.disabled && !cell.weekend && !nextDays.includes(cell.key)) {
         nextDays.push(cell.key);
-        nextHours[cell.key] = 8;
       }
     });
-    onChange(nextDays, nextHours);
+    onChange(nextDays);
   };
 
   const summary =
     days.length === 0
       ? ""
-      : [...days].sort().length === 1
+      : days.length === 1
         ? prettyDay(days[0])
         : `${prettyDay([...days].sort()[0])} → ${prettyDay([...days].sort().at(-1) as string)}`;
 
@@ -162,19 +138,14 @@ export function DtrDaysPicker({ days, hours, onChange, taken, contractStart, con
         <button type="button" className="btn btn-outline-primary btn-sm" onClick={() => setOpen(true)}>
           <i className="fas fa-calendar-days me-1" /> Pick working days
         </button>
-
-        {days.length === 0 ? (
-          <span className="text-muted small">No days selected yet.</span>
-        ) : (
-          <span className="badge rounded-pill bg-primary-subtle text-primary-emphasis">
-            {days.length} day{days.length !== 1 ? "s" : ""} &bull; {formatNumber(Math.round(totalHours * 10) / 10)} hrs
-          </span>
-        )}
+        <span className="text-muted small">
+          {days.length === 0 ? "No days selected yet." : "Selected dates are highlighted on the calendar."}
+        </span>
       </div>
 
       <div className="form-text mt-1">
         {days.length === 0
-          ? "Open the calendar and click each day you worked — you'll enter the hours you rendered for that day."
+          ? "Open the calendar and click each day you worked. Your Admin will assign the working hours after the PESO review."
           : summary}
       </div>
 
@@ -260,15 +231,13 @@ export function DtrDaysPicker({ days, hours, onChange, taken, contractStart, con
                     ? "Already covered by another DTR"
                     : cell.outsideContract
                       ? "Outside your contract dates — will be flagged for review"
-                      : "Click to enter the hours you rendered"
+                      : cell.selected
+                        ? "Click to remove this day"
+                        : "Click to select this day"
                 }
-                onClick={() => {
-                  setEntryKey(cell.key);
-                  setEntryHours(cell.selected ? Number(hours[cell.key]) || 8 : 8);
-                }}
+                onClick={() => toggleDay(cell.key)}
               >
                 <span>{cell.day}</span>
-                {cell.selected && <small className="dtr-cal-hours">{formatHours(hours[cell.key] ?? 0)}</small>}
               </button>
             );
           })}
@@ -290,12 +259,12 @@ export function DtrDaysPicker({ days, hours, onChange, taken, contractStart, con
             <button
               type="button"
               className="btn btn-sm btn-outline-secondary"
-              title="Add every weekday in this month at 8 hrs"
+              title="Add every weekday in this month"
               onClick={addWeekdays}
             >
               Add weekdays
             </button>
-            <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => onChange([], {})}>
+            <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => onChange([])}>
               Clear
             </button>
           </div>
@@ -305,60 +274,8 @@ export function DtrDaysPicker({ days, hours, onChange, taken, contractStart, con
           <div className="text-muted small">
             {days.length} day(s) selected · {monthStats.covered} of {monthStats.weekdays} weekdays this month
           </div>
-          <div className="fw-bold" style={{ color: "var(--company-primary)" }}>
-            Total: {formatNumber(Math.round(totalHours * 10) / 10)} hrs
-          </div>
+          <div className="text-muted small">Working hours will be assigned by the Admin after review.</div>
         </div>
-
-        {entryKey && (
-          <div
-            className="dtr-entry-layer"
-            onClick={(event) => {
-              if (event.target === event.currentTarget) setEntryKey(null);
-            }}
-          >
-            <div className="dtr-entry-card">
-              <div className="fw-semibold mb-1">{prettyDay(entryKey)}</div>
-              <p className="text-muted small mb-2">How many hours did you render on this day?</p>
-
-              <div className="input-group">
-                <input
-                  ref={entryInputRef}
-                  type="number"
-                  className="form-control"
-                  min={0.1}
-                  max={24}
-                  step={0.1}
-                  value={entryHours}
-                  onChange={(event) => setEntryHours(Number(event.target.value))}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      saveEntry();
-                    }
-                  }}
-                />
-                <span className="input-group-text">hrs</span>
-              </div>
-
-              <div className="d-flex align-items-center mt-3">
-                {selectedSet.has(entryKey) && (
-                  <button type="button" className="btn btn-sm btn-outline-danger" onClick={removeEntry}>
-                    Remove
-                  </button>
-                )}
-                <div className="ms-auto d-flex gap-2">
-                  <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setEntryKey(null)}>
-                    Cancel
-                  </button>
-                  <button type="button" className="btn btn-sm btn-brand" onClick={saveEntry}>
-                    Save
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </Modal>
     </>
   );

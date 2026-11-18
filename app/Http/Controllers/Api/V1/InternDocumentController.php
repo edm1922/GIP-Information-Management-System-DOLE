@@ -3,17 +3,18 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ResubmitInternDocumentRequest;
+use App\Http\Requests\ReturnInternDocumentRequest;
 use App\Http\Requests\ReviewInternDocumentRequest;
+use App\Http\Requests\SaveDocumentHoursRequest;
 use App\Http\Requests\StoreInternDocumentRequest;
 use App\Http\Resources\V1\InternDocumentResource;
 use App\Http\Resources\V1\InternResource;
 use App\Models\Intern;
 use App\Models\InternDocument;
-use App\Notifications\InternDocumentReviewed;
-use App\Notifications\InternDocumentUploaded;
-use App\Services\AuditService;
+use App\Notifications\InternDocumentSubmitted;
 use App\Services\InternDocumentUploadService;
-use App\Services\InternHoursService;
+use App\Services\InternDocumentWorkflowService;
 use App\Services\InternNotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,6 +26,7 @@ class InternDocumentController extends Controller
     public function __construct(
         private readonly InternDocumentUploadService $uploadService,
         private readonly InternNotificationService $notifier,
+        private readonly InternDocumentWorkflowService $workflow,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -32,7 +34,7 @@ class InternDocumentController extends Controller
         $this->authorize('viewAny', InternDocument::class);
 
         $query = InternDocument::query()
-            ->with(['intern.user', 'documentType', 'uploader', 'reviewer', 'dtrDays']);
+            ->with(['intern.user', 'documentType', 'uploader', 'reviewer', 'pesoReviewer', 'adminReviewer', 'dtrDays']);
 
         if ($status = $request->get('review_status')) {
             $query->where('review_status', $status);
@@ -69,6 +71,13 @@ class InternDocumentController extends Controller
         $search = trim((string) $request->get('q'));
         $filter = (string) $request->get('filter');
 
+        $pendingStatuses = [
+            InternDocument::STATUS_PENDING_PESO,
+            InternDocument::STATUS_PENDING_ADMIN,
+            InternDocument::STATUS_RETURNED_TO_PESO,
+            InternDocument::STATUS_RETURNED_TO_INTERN,
+        ];
+
         $interns = Intern::query()
             ->select('interns.*')
             ->leftJoin('users', 'users.id', '=', 'interns.user_id')
@@ -80,7 +89,7 @@ class InternDocumentController extends Controller
                 'internDocuments as files_count' => fn ($query) => $query
                     ->whereDoesntHave('documentType', fn ($type) => $type->where('code', 'DTR')),
                 'internDocuments as pending_count' => fn ($query) => $query
-                    ->where('review_status', 'pending'),
+                    ->whereIn('review_status', $pendingStatuses),
             ])
             ->when($search !== '', function ($query) use ($search) {
                 $like = '%'.$search.'%';
@@ -93,7 +102,7 @@ class InternDocumentController extends Controller
                 });
             })
             ->when($filter === 'pending', fn ($query) => $query
-                ->whereHas('internDocuments', fn ($documents) => $documents->where('review_status', 'pending')))
+                ->whereHas('internDocuments', fn ($documents) => $documents->whereIn('review_status', $pendingStatuses)))
             ->when($filter === 'none', fn ($query) => $query->whereDoesntHave('internDocuments'))
             ->orderBy('users.last_name')
             ->orderBy('users.first_name')
@@ -114,7 +123,7 @@ class InternDocumentController extends Controller
         $intern->load(['user', 'partnerAgency']);
 
         $documents = $intern->internDocuments()
-            ->with(['documentType', 'uploader', 'reviewer', 'dtrDays', 'intern'])
+            ->with(['documentType', 'uploader', 'reviewer', 'pesoReviewer', 'adminReviewer', 'reviewEvents.actor', 'dtrDays', 'intern'])
             ->latest()
             ->get();
 
@@ -149,43 +158,115 @@ class InternDocumentController extends Controller
 
         $document = $this->uploadService->upload($intern, $validated, $actor);
 
-        $this->notifier->notifyPesoTeam(new InternDocumentUploaded($document));
+        $this->notifier->notifyPesoManagers(new InternDocumentSubmitted($document));
 
         $selfServiceRoute = $actor->isIntern() ? $this->selfServiceRouteFor($document) : null;
 
         return response()->json([
-            'message' => 'Document uploaded successfully and is now pending review.',
-            'document' => new InternDocumentResource($document->fresh(['documentType', 'uploader', 'reviewer', 'dtrDays', 'intern'])),
+            'message' => 'Document uploaded successfully and is now pending PESO review.',
+            'document' => $this->present($document),
             'self_service_route' => $selfServiceRoute,
         ], 201);
     }
 
+    public function pesoApprove(Request $request, InternDocument $document): JsonResponse
+    {
+        $this->authorize('reviewAsPeso', $document);
+
+        $validated = $request->validate([
+            'review_remarks' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $updated = $this->workflow->pesoApprove($document, $request->user(), $validated['review_remarks'] ?? null);
+
+        return $this->stateResponse($updated, 'Document approved and forwarded to the Admin for final review.');
+    }
+
+    public function pesoReturn(ReturnInternDocumentRequest $request, InternDocument $document): JsonResponse
+    {
+        $this->authorize('reviewAsPeso', $document);
+
+        $updated = $this->workflow->pesoReturn($document, $request->user(), $request->validated('remarks'));
+
+        return $this->stateResponse($updated, 'Document returned to the intern for correction.');
+    }
+
+    public function adminApprove(Request $request, InternDocument $document): JsonResponse
+    {
+        $this->authorize('reviewAsAdmin', $document);
+
+        $validated = $request->validate([
+            'review_remarks' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $updated = $this->workflow->adminApprove($document, $request->user(), $validated['review_remarks'] ?? null);
+
+        return $this->stateResponse($updated, 'Document approved successfully.');
+    }
+
+    public function adminReturn(ReturnInternDocumentRequest $request, InternDocument $document): JsonResponse
+    {
+        $this->authorize('reviewAsAdmin', $document);
+
+        $updated = $this->workflow->adminReturn($document, $request->user(), $request->validated('remarks'));
+
+        return $this->stateResponse($updated, 'Document returned to the PESO manager for correction.');
+    }
+
+    public function saveHours(SaveDocumentHoursRequest $request, InternDocument $document): JsonResponse
+    {
+        $this->authorize('assignHours', $document);
+
+        $updated = $this->workflow->saveHours($document, $request->user(), $request->validated('day_hours'));
+
+        return $this->stateResponse($updated, 'Working hours saved.');
+    }
+
+    public function resubmit(ResubmitInternDocumentRequest $request, InternDocument $document): JsonResponse
+    {
+        $this->authorize('resubmit', $document);
+
+        $updated = $this->workflow->resubmit(
+            $document,
+            $request->user(),
+            $request->validated(),
+            $request->file('file')
+        );
+
+        return $this->stateResponse($updated, 'Corrections submitted. The document is pending PESO review again.');
+    }
+
+    public function history(InternDocument $document): JsonResponse
+    {
+        $this->authorize('view', $document);
+
+        return response()->json([
+            'events' => $this->workflow->history($document),
+        ]);
+    }
+
+    /**
+     * Legacy single-step review endpoint kept for backward compatibility with
+     * older clients/Blade forms. Maps onto the sequential workflow.
+     */
     public function review(ReviewInternDocumentRequest $request, InternDocument $document): JsonResponse
     {
         $validated = $request->validated();
+        $actor = $request->user();
 
-        $document->update([
-            'review_status' => $validated['decision'],
-            'reviewed_by' => $request->user()->id,
-            'reviewed_at' => now(),
-            'review_remarks' => $validated['review_remarks'] ?? null,
-        ]);
+        if ($actor->isAdmin()) {
+            $this->authorize('reviewAsAdmin', $document);
+            $updated = $validated['decision'] === 'approved'
+                ? $this->workflow->adminApprove($document, $actor, $validated['review_remarks'] ?? null)
+                : $this->workflow->adminReturn($document, $actor, $validated['review_remarks'] ?? 'Returned for correction.');
+        } else {
+            $this->authorize('reviewAsPeso', $document);
+            $updated = $validated['decision'] === 'approved'
+                ? $this->workflow->pesoApprove($document, $actor, $validated['review_remarks'] ?? null)
+                : $this->workflow->pesoReturn($document, $actor, $validated['review_remarks'] ?? 'Returned for correction.');
+        }
 
-        app(InternHoursService::class)->recalculate($document->intern);
-
-        $this->notifier->notifyIntern($document->intern, new InternDocumentReviewed($document->fresh(['documentType'])));
-
-        AuditService::log(
-            $validated['decision'] === 'approved' ? 'approved' : 'rejected',
-            "Intern document {$validated['decision']}: {$document->system_filename}",
-            $document->intern,
-            ['document_id' => $document->id]
-        );
-
-        return response()->json([
-            'message' => 'Document '.$validated['decision'].' successfully.',
-            'document' => new InternDocumentResource($document->fresh(['documentType', 'uploader', 'reviewer', 'dtrDays', 'intern'])),
-        ]);
+        return $this->stateResponse($updated, 'Document reviewed successfully.');
     }
 
     public function preview(InternDocument $document): StreamedResponse
@@ -218,6 +299,21 @@ class InternDocumentController extends Controller
         $this->authorize('download', $document);
 
         return Storage::disk('local')->download($document->file_path, $document->original_filename);
+    }
+
+    private function present(InternDocument $document): InternDocumentResource
+    {
+        return new InternDocumentResource($document->fresh([
+            'documentType', 'uploader', 'reviewer', 'pesoReviewer', 'adminReviewer', 'reviewEvents.actor', 'dtrDays', 'intern.user',
+        ]));
+    }
+
+    private function stateResponse(InternDocument $document, string $message): JsonResponse
+    {
+        return response()->json([
+            'message' => $message,
+            'document' => $this->present($document),
+        ]);
     }
 
     private function selfServiceRouteFor(InternDocument $document): string

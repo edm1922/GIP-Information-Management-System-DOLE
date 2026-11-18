@@ -115,17 +115,38 @@ export interface DtrDay {
   document_id: number;
   intern_id: number;
   work_date: string | null;
-  hours: number;
+  /** null until an Admin assigns the hours during final review. */
+  hours: number | null;
 }
 
 /** Shown in the reviewer's claimed-days calendar. */
 export interface DtrDayClaim {
   date: string;
-  hours: number;
+  hours: number | null;
   outside_contract: boolean;
 }
 
-export type ReviewStatus = "pending" | "approved" | "rejected";
+export type ReviewStatus =
+  | "pending_peso"
+  | "pending_admin"
+  | "returned_to_peso"
+  | "returned_to_intern"
+  | "approved"
+  // legacy values kept for migration compatibility
+  | "pending"
+  | "rejected";
+
+export interface InternDocumentReviewEvent {
+  id: number;
+  action: string;
+  actor: string | null;
+  actor_role: string | null;
+  from_status: string | null;
+  to_status: string | null;
+  remarks: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string | null;
+}
 
 export interface InternDocument {
   id: number;
@@ -143,10 +164,22 @@ export interface InternDocument {
   status: string | null;
   document_period: string | null;
   review_status: ReviewStatus;
+  status_label?: string;
   reviewed_by: number | null;
   reviewer?: User | null;
   reviewed_at: string | null;
   review_remarks: string | null;
+  peso_reviewed_by?: number | null;
+  peso_reviewer?: string | null;
+  peso_reviewed_at?: string | null;
+  peso_remarks?: string | null;
+  admin_reviewed_by?: number | null;
+  admin_reviewer?: string | null;
+  admin_reviewed_at?: string | null;
+  admin_remarks?: string | null;
+  hours_assigned_by?: number | null;
+  hours_assigned_at?: string | null;
+  review_events?: InternDocumentReviewEvent[];
   metadata: unknown;
   dtr_days?: DtrDay[];
   dtr_summary?: string | null;
@@ -277,7 +310,7 @@ export interface InternFolderResponse {
 export interface ChecklistItem {
   type: DocumentType;
   required: boolean;
-  status: "missing" | "approved" | "rejected" | "pending";
+  status: "missing" | "approved" | "returned" | "pending";
   latest_document: InternDocument | null;
 }
 

@@ -46,7 +46,7 @@ class InternHoursService
     public function pendingHours(Intern $intern): float
     {
         return (float) $this->query($intern)
-            ->whereHas('document', fn ($query) => $query->where('review_status', 'pending'))
+            ->whereHas('document', fn ($query) => $query->whereIn('review_status', ['pending_peso', 'pending_admin']))
             ->sum('hours');
     }
 
@@ -54,7 +54,7 @@ class InternHoursService
     public function rejectedHours(Intern $intern): float
     {
         return (float) $this->query($intern)
-            ->whereHas('document', fn ($query) => $query->where('review_status', 'rejected'))
+            ->whereHas('document', fn ($query) => $query->whereIn('review_status', ['returned_to_peso', 'returned_to_intern']))
             ->sum('hours');
     }
 

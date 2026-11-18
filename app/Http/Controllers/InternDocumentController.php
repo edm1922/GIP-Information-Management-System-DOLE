@@ -2,16 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ResubmitInternDocumentRequest;
+use App\Http\Requests\ReturnInternDocumentRequest;
 use App\Http\Requests\ReviewInternDocumentRequest;
+use App\Http\Requests\SaveDocumentHoursRequest;
 use App\Http\Requests\StoreInternDocumentRequest;
 use App\Models\Intern;
 use App\Models\InternDocument;
-use App\Notifications\InternDocumentReviewed;
-use App\Notifications\InternDocumentUploaded;
-use App\Services\AuditService;
+use App\Notifications\InternDocumentSubmitted;
 use App\Services\InternDocumentUploadService;
-use App\Services\InternHoursService;
+use App\Services\InternDocumentWorkflowService;
 use App\Services\InternNotificationService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -23,17 +25,15 @@ class InternDocumentController extends Controller
     public function __construct(
         private readonly InternDocumentUploadService $uploadService,
         private readonly InternNotificationService $notifier,
+        private readonly InternDocumentWorkflowService $workflow,
     ) {}
 
-    /**
-     * Review queue for administrators and PESO managers.
-     */
     public function index(Request $request): View
     {
         $this->authorize('viewAny', InternDocument::class);
 
         $query = InternDocument::query()
-            ->with(['intern.user', 'documentType', 'uploader', 'reviewer', 'dtrDays']);
+            ->with(['intern.user', 'documentType', 'uploader', 'reviewer', 'pesoReviewer', 'adminReviewer', 'dtrDays']);
 
         if ($status = $request->get('review_status')) {
             $query->where('review_status', $status);
@@ -43,7 +43,6 @@ class InternDocumentController extends Controller
             $query->where('intern_id', (int) $internId);
         }
 
-        // Free-text search across the file name and the intern's name/username.
         if ($search = trim((string) $request->get('q'))) {
             $like = '%'.$search.'%';
             $query->where(function ($where) use ($like) {
@@ -62,16 +61,19 @@ class InternDocumentController extends Controller
         return view('intern-documents.index', compact('documents'));
     }
 
-    /**
-     * Folder browser: one folder per intern, showing how many DTRs / 201 files
-     * they have submitted. Supports searching by intern and filtering by state.
-     */
     public function folders(Request $request): View
     {
         $this->authorize('viewAny', InternDocument::class);
 
         $search = trim((string) $request->get('q'));
         $filter = (string) $request->get('filter');
+
+        $pendingStatuses = [
+            InternDocument::STATUS_PENDING_PESO,
+            InternDocument::STATUS_PENDING_ADMIN,
+            InternDocument::STATUS_RETURNED_TO_PESO,
+            InternDocument::STATUS_RETURNED_TO_INTERN,
+        ];
 
         $interns = Intern::query()
             ->select('interns.*')
@@ -84,7 +86,7 @@ class InternDocumentController extends Controller
                 'internDocuments as files_count' => fn ($query) => $query
                     ->whereDoesntHave('documentType', fn ($type) => $type->where('code', 'DTR')),
                 'internDocuments as pending_count' => fn ($query) => $query
-                    ->where('review_status', 'pending'),
+                    ->whereIn('review_status', $pendingStatuses),
             ])
             ->when($search !== '', function ($query) use ($search) {
                 $like = '%'.$search.'%';
@@ -97,7 +99,7 @@ class InternDocumentController extends Controller
                 });
             })
             ->when($filter === 'pending', fn ($query) => $query
-                ->whereHas('internDocuments', fn ($documents) => $documents->where('review_status', 'pending')))
+                ->whereHas('internDocuments', fn ($documents) => $documents->whereIn('review_status', $pendingStatuses)))
             ->when($filter === 'none', fn ($query) => $query->whereDoesntHave('internDocuments'))
             ->orderBy('users.last_name')
             ->orderBy('users.first_name')
@@ -107,9 +109,6 @@ class InternDocumentController extends Controller
         return view('intern-documents.folders', compact('interns', 'search', 'filter'));
     }
 
-    /**
-     * A single intern's folder: their DTRs and 201 files side by side.
-     */
     public function internFolder(Intern $intern): View
     {
         $this->authorize('viewAny', InternDocument::class);
@@ -117,7 +116,7 @@ class InternDocumentController extends Controller
         $intern->load(['user', 'partnerAgency']);
 
         $documents = $intern->internDocuments()
-            ->with(['documentType', 'uploader', 'reviewer', 'dtrDays'])
+            ->with(['documentType', 'uploader', 'reviewer', 'pesoReviewer', 'adminReviewer', 'reviewEvents.actor', 'dtrDays'])
             ->latest()
             ->get();
 
@@ -129,9 +128,6 @@ class InternDocumentController extends Controller
         return view('intern-documents.folder', compact('intern', 'dtrs', 'files'));
     }
 
-    /**
-     * Store a newly uploaded intern document.
-     */
     public function store(StoreInternDocumentRequest $request): RedirectResponse
     {
         $actor = $request->user();
@@ -151,58 +147,99 @@ class InternDocumentController extends Controller
 
         $document = $this->uploadService->upload($intern, $validated, $actor);
 
-        $this->notifier->notifyPesoTeam(new InternDocumentUploaded($document));
+        $this->notifier->notifyPesoManagers(new InternDocumentSubmitted($document));
 
         $redirect = $actor->isIntern()
             ? redirect()->route($this->selfServiceRouteFor($document))
             : back();
 
-        return $redirect->with('success', 'Document uploaded successfully and is now pending review.');
+        return $redirect->with('success', 'Document uploaded successfully and is now pending PESO review.');
     }
 
-    /**
-     * Interns are split across two tabs: DTRs land on the Daily Time Record tab,
-     * every other document lands on 201 Files.
-     */
-    private function selfServiceRouteFor(InternDocument $document): string
+    public function pesoApprove(Request $request, InternDocument $document): RedirectResponse
     {
-        return $document->documentType?->code === 'DTR'
-            ? 'my-internship.index'
-            : 'my-internship.files';
+        $this->authorize('reviewAsPeso', $document);
+
+        $validated = $request->validate(['review_remarks' => ['nullable', 'string', 'max:2000']]);
+        $this->workflow->pesoApprove($document, $request->user(), $validated['review_remarks'] ?? null);
+
+        return back()->with('success', 'Document approved and forwarded to the Admin.');
     }
 
-    /**
-     * Approve or reject a submitted intern document.
-     */
+    public function pesoReturn(ReturnInternDocumentRequest $request, InternDocument $document): RedirectResponse
+    {
+        $this->authorize('reviewAsPeso', $document);
+
+        $this->workflow->pesoReturn($document, $request->user(), $request->validated('remarks'));
+
+        return back()->with('success', 'Document sent back to the intern for correction.');
+    }
+
+    public function adminApprove(Request $request, InternDocument $document): RedirectResponse
+    {
+        $this->authorize('reviewAsAdmin', $document);
+
+        $validated = $request->validate(['review_remarks' => ['nullable', 'string', 'max:2000']]);
+        $this->workflow->adminApprove($document, $request->user(), $validated['review_remarks'] ?? null);
+
+        return back()->with('success', 'Document approved successfully.');
+    }
+
+    public function adminReturn(ReturnInternDocumentRequest $request, InternDocument $document): RedirectResponse
+    {
+        $this->authorize('reviewAsAdmin', $document);
+
+        $this->workflow->adminReturn($document, $request->user(), $request->validated('remarks'));
+
+        return back()->with('success', 'Document returned to the PESO manager.');
+    }
+
+    public function saveHours(SaveDocumentHoursRequest $request, InternDocument $document): RedirectResponse
+    {
+        $this->authorize('assignHours', $document);
+
+        $this->workflow->saveHours($document, $request->user(), $request->validated('day_hours'));
+
+        return back()->with('success', 'Working hours saved.');
+    }
+
+    public function resubmit(ResubmitInternDocumentRequest $request, InternDocument $document): RedirectResponse
+    {
+        $this->authorize('resubmit', $document);
+
+        $this->workflow->resubmit($document, $request->user(), $request->validated(), $request->file('file'));
+
+        return back()->with('success', 'Corrections submitted. The document is pending PESO review again.');
+    }
+
+    public function history(InternDocument $document): JsonResponse
+    {
+        $this->authorize('view', $document);
+
+        return response()->json(['events' => $this->workflow->history($document)]);
+    }
+
+    /** Legacy Blade review form (maps onto the sequential workflow). */
     public function review(ReviewInternDocumentRequest $request, InternDocument $document): RedirectResponse
     {
         $validated = $request->validated();
+        $actor = $request->user();
 
-        $document->update([
-            'review_status' => $validated['decision'],
-            'reviewed_by' => $request->user()->id,
-            'reviewed_at' => now(),
-            'review_remarks' => $validated['review_remarks'] ?? null,
-        ]);
+        if ($actor->isAdmin()) {
+            $this->authorize('reviewAsAdmin', $document);
+            $validated['decision'] === 'approved'
+                ? $this->workflow->adminApprove($document, $actor, $validated['review_remarks'] ?? null)
+                : $this->workflow->adminReturn($document, $actor, $validated['review_remarks'] ?? 'Returned for correction.');
+        } else {
+            $this->authorize('reviewAsPeso', $document);
+            $validated['decision'] === 'approved'
+                ? $this->workflow->pesoApprove($document, $actor, $validated['review_remarks'] ?? null)
+                : $this->workflow->pesoReturn($document, $actor, $validated['review_remarks'] ?? 'Returned for correction.');
+        }
 
-        // Approving credits the claimed hours; rejecting removes them again.
-        app(InternHoursService::class)->recalculate($document->intern);
-
-        $this->notifier->notifyIntern($document->intern, new InternDocumentReviewed($document->fresh(['documentType'])));
-
-        AuditService::log(
-            $validated['decision'] === 'approved' ? 'approved' : 'rejected',
-            "Intern document {$validated['decision']}: {$document->system_filename}",
-            $document->intern,
-            ['document_id' => $document->id]
-        );
-
-        return back()->with('success', 'Document '.$validated['decision'].' successfully.');
+        return back()->with('success', 'Document reviewed successfully.');
     }
 
-    /**
-     * Stream the document for inline preview.
-     */
     public function preview(InternDocument $document): StreamedResponse
     {
         $this->authorize('download', $document);
@@ -228,13 +265,17 @@ class InternDocumentController extends Controller
         ]);
     }
 
-    /**
-     * Download the document as an attachment.
-     */
     public function download(InternDocument $document): StreamedResponse
     {
         $this->authorize('download', $document);
 
         return Storage::disk('local')->download($document->file_path, $document->original_filename);
+    }
+
+    private function selfServiceRouteFor(InternDocument $document): string
+    {
+        return $document->documentType?->code === 'DTR'
+            ? 'my-internship.index'
+            : 'my-internship.files';
     }
 }

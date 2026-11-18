@@ -41,7 +41,7 @@ function tabIntern(): array
     return [$user, $intern];
 }
 
-function tabDocument(Intern $intern, DocumentType $type, string $filename, string $status = 'pending'): InternDocument
+function tabDocument(Intern $intern, DocumentType $type, string $filename, string $status = 'pending_peso'): InternDocument
 {
     return InternDocument::withoutGlobalScope('intern')->create([
         'intern_id' => $intern->id,
@@ -119,7 +119,6 @@ it('redirects each upload to the tab of that document type', function () {
     $this->actingAs($user)->post(route('intern-documents.store'), [
         'document_type_id' => $dtrType->id,
         'days' => [now()->subDays(2)->format('Y-m-d')],
-        'day_hours' => [now()->subDays(2)->format('Y-m-d') => 8],
         'file' => UploadedFile::fake()->create('dtr.pdf', 40, 'application/pdf'),
     ])->assertRedirect(route('my-internship.index'));
 
@@ -132,16 +131,15 @@ it('redirects each upload to the tab of that document type', function () {
 it('deep-links review notifications to the matching tab', function () {
     [, $intern] = tabIntern();
     $admin = User::factory()->admin()->create();
+    $peso = User::factory()->pesoManager()->create();
     $arType = tabType('AR', 'Accomplishment Report');
 
     $document = tabDocument($intern, $arType, 'ar.pdf');
 
-    $this->actingAs($admin)
-        ->patch(route('intern-documents.review', $document), ['decision' => 'approved'])
-        ->assertSessionHasNoErrors();
+    apiApproveInternDocumentThroughWorkflow($document, $admin, $peso);
 
     $notification = $intern->user->notifications()->latest()->first();
-    expect($notification->data['url_route'])->toBe('my-internship.files');
+    expect($notification->data['url'])->toBe('/my-internship/201-files');
 });
 
 it('shows requirement statuses on the 201 Files tab', function () {
@@ -150,7 +148,7 @@ it('shows requirement statuses on the 201 Files tab', function () {
     tabType('CERT', 'Certificate', true);
 
     $ar = tabType('AR', 'Accomplishment Report');
-    tabDocument($intern, $ar, 'ar.pdf', 'pending');
+    tabDocument($intern, $ar, 'ar.pdf', 'pending_peso');
 
     $response = $this->actingAs($user)->get(route('my-internship.files'));
 

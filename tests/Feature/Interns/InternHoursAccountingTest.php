@@ -9,8 +9,9 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Hours accounting: only approved DTRs are credited, and rejecting a DTR takes
- * the hours back out of the intern's rendered total.
+ * Hours accounting under the sequential workflow: interns no longer submit
+ * hours; an Admin assigns them during final review, and only final approval
+ * credits them to the intern.
  */
 function hoursDtrType(): DocumentType
 {
@@ -42,7 +43,6 @@ function hoursIntern(int $rendered = 0): array
     return [$user, $intern];
 }
 
-/** Directly create an approved/pending/rejected DTR with claimed days. */
 function hoursClaimedDtr(Intern $intern, array $dates, string $status, float $hours = 8): InternDocument
 {
     $document = InternDocument::withoutGlobalScope('intern')->create([
@@ -71,7 +71,7 @@ function hoursClaimedDtr(Intern $intern, array $dates, string $status, float $ho
     return $document;
 }
 
-it('does not credit hours while a DTR is still pending', function () {
+it('credits nothing until an Admin assigns hours and finally approves', function () {
     Storage::fake('local');
 
     [$user, $intern] = hoursIntern();
@@ -79,59 +79,73 @@ it('does not credit hours while a DTR is still pending', function () {
     $this->actingAs($user)->post(route('intern-documents.store'), [
         'document_type_id' => hoursDtrType()->id,
         'days' => [now()->subDays(2)->format('Y-m-d'), now()->subDay()->format('Y-m-d')],
-        'hours_per_day' => 8,
         'file' => UploadedFile::fake()->create('dtr.pdf', 40, 'application/pdf'),
     ])->assertSessionHasNoErrors();
 
+    $document = InternDocument::firstOrFail();
+    $peso = User::factory()->pesoManager()->create();
+    $admin = User::factory()->admin()->create();
+
     expect((int) $intern->fresh()->rendered_hours)->toBe(0)
-        ->and($intern->fresh()->pending_hours)->toBe(16.0);
+        ->and($intern->fresh()->pending_hours)->toBe(0.0);
+
+    $this->actingAs($peso)->post(route('intern-documents.peso-approve', $document))->assertSessionHasNoErrors();
+
+    $dates = $document->dtrDays()->pluck('work_date')->map(fn ($date) => $date->format('Y-m-d'))->all();
+
+    $this->actingAs($admin)->patch(route('intern-documents.hours', $document), [
+        'day_hours' => [$dates[0] => 8, $dates[1] => 8],
+    ])->assertSessionHasNoErrors();
+
+    expect($intern->fresh()->pending_hours)->toBe(16.0)
+        ->and((int) $intern->fresh()->rendered_hours)->toBe(0);
+
+    $this->actingAs($admin)->post(route('intern-documents.admin-approve', $document))->assertSessionHasNoErrors();
+
+    expect((int) $intern->fresh()->rendered_hours)->toBe(16);
 });
 
-it('revokes credited hours when an approved DTR is later rejected', function () {
+it('does not credit hours while a returned document waits for corrections', function () {
     Storage::fake('local');
 
     [$user, $intern] = hoursIntern();
+    $peso = User::factory()->pesoManager()->create();
     $admin = User::factory()->admin()->create();
 
     $this->actingAs($user)->post(route('intern-documents.store'), [
         'document_type_id' => hoursDtrType()->id,
         'days' => [now()->subDays(4)->format('Y-m-d'), now()->subDays(3)->format('Y-m-d')],
-        'hours_per_day' => 8,
         'file' => UploadedFile::fake()->create('dtr.pdf', 40, 'application/pdf'),
     ])->assertSessionHasNoErrors();
 
     $document = InternDocument::firstOrFail();
+    $this->actingAs($peso)->post(route('intern-documents.peso-approve', $document));
 
-    // Approve → credited.
-    $this->actingAs($admin)
-        ->patch(route('intern-documents.review', $document), ['decision' => 'approved'])
-        ->assertSessionHasNoErrors();
-    expect((int) $intern->fresh()->rendered_hours)->toBe(16);
+    $dates = $document->dtrDays()->pluck('work_date')->map(fn ($date) => $date->format('Y-m-d'))->all();
+    $this->actingAs($admin)->patch(route('intern-documents.hours', $document), [
+        'day_hours' => [$dates[0] => 8, $dates[1] => 8],
+    ]);
 
-    // Reject → the hours must come straight back off.
-    $this->actingAs($admin)
-        ->patch(route('intern-documents.review', $document), [
-            'decision' => 'rejected',
-            'review_remarks' => 'Scan does not match the claimed days.',
-        ])
-        ->assertSessionHasNoErrors();
+    $this->actingAs($admin)->post(route('intern-documents.admin-return', $document), [
+        'remarks' => 'The scan does not match the selected days.',
+    ])->assertSessionHasNoErrors();
 
     $intern->refresh();
+
     expect((int) $intern->rendered_hours)->toBe(0)
-        ->and($intern->rejected_hours)->toBe(16.0)
-        ->and($intern->pending_hours)->toBe(0.0);
+        ->and((float) $intern->rejected_hours)->toBe(16.0) // returned documents are not credited
+        ->and($document->fresh()->review_status)->toBe(InternDocument::STATUS_RETURNED_TO_PESO);
 });
 
 it('recalculates recorded hours from approved days via artisan command', function () {
     [, $intern] = hoursIntern(rendered: 999);
     hoursClaimedDtr($intern, [now()->subDays(5)->format('Y-m-d')], 'approved');
     hoursClaimedDtr($intern, [now()->subDays(4)->format('Y-m-d')], 'approved');
-    hoursClaimedDtr($intern, [now()->subDays(3)->format('Y-m-d')], 'pending');
-    hoursClaimedDtr($intern, [now()->subDays(2)->format('Y-m-d')], 'rejected');
+    hoursClaimedDtr($intern, [now()->subDays(3)->format('Y-m-d')], 'pending_peso');
+    hoursClaimedDtr($intern, [now()->subDays(2)->format('Y-m-d')], 'returned_to_intern');
 
     $this->artisan('interns:recalculate-hours')->assertSuccessful();
 
-    // 2 approved days × 8 hrs; pending and rejected contribute nothing.
     expect((int) $intern->fresh()->rendered_hours)->toBe(16);
 });
 

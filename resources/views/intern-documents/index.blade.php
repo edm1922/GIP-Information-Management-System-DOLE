@@ -38,8 +38,8 @@
                     <label class="form-label">Review Status</label>
                     <select name="review_status" class="form-select">
                         <option value="">All</option>
-                        @foreach(['pending', 'approved', 'rejected'] as $status)
-                            <option value="{{ $status }}" @selected(request('review_status') === $status)>{{ ucfirst($status) }}</option>
+                        @foreach(['pending_peso', 'pending_admin', 'returned_to_peso', 'returned_to_intern', 'approved'] as $status)
+                            <option value="{{ $status }}" @selected(request('review_status') === $status)>{{ \App\Models\InternDocument::statusLabel($status) }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -58,5 +58,4 @@
     @include('intern-documents._review-table', ['documents' => $documents])
 
     @include('intern-documents._dtr-days-viewer')
-    @include('intern-documents._reject-modal')
-</x-app-layout>
+    </x-app-layout>

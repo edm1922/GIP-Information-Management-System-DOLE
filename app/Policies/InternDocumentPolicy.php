@@ -8,17 +8,11 @@ use App\Models\User;
 
 class InternDocumentPolicy
 {
-    /**
-     * Admin and PESO Manager may browse all intern documents.
-     */
     public function viewAny(User $user): bool
     {
         return $user->hasRole('admin', 'peso_manager');
     }
 
-    /**
-     * Admin/PESO may view any intern document; an intern may view only their own.
-     */
     public function view(User $user, InternDocument $document): bool
     {
         if ($user->hasRole('admin', 'peso_manager')) {
@@ -28,9 +22,6 @@ class InternDocumentPolicy
         return $user->isIntern() && $document->intern?->user_id === $user->id;
     }
 
-    /**
-     * An intern may upload documents for their own record; admin may upload on behalf.
-     */
     public function create(User $user, ?Intern $intern = null): bool
     {
         if ($user->hasRole('admin')) {
@@ -40,9 +31,37 @@ class InternDocumentPolicy
         return $user->isIntern() && $intern !== null && $intern->user_id === $user->id;
     }
 
-    /**
-     * Only Admin and PESO Manager may approve/reject documents.
-     */
+    /** PESO managers review the first stage (initial or after an Admin return). */
+    public function reviewAsPeso(User $user, InternDocument $document): bool
+    {
+        return $user->isPesoManager()
+            && in_array($document->review_status, [
+                InternDocument::STATUS_PENDING_PESO,
+                InternDocument::STATUS_RETURNED_TO_PESO,
+            ], true);
+    }
+
+    /** Admins perform the final approval / return. */
+    public function reviewAsAdmin(User $user, InternDocument $document): bool
+    {
+        return $user->isAdmin() && $document->review_status === InternDocument::STATUS_PENDING_ADMIN;
+    }
+
+    /** Only Admins assign working hours, and only while awaiting final approval. */
+    public function assignHours(User $user, InternDocument $document): bool
+    {
+        return $user->isAdmin() && $document->review_status === InternDocument::STATUS_PENDING_ADMIN;
+    }
+
+    /** Interns may correct/resubmit only their own returned documents. */
+    public function resubmit(User $user, InternDocument $document): bool
+    {
+        return $user->isIntern()
+            && $document->intern?->user_id === $user->id
+            && $document->review_status === InternDocument::STATUS_RETURNED_TO_INTERN;
+    }
+
+    /** Legacy ability used by the backward-compatible single-step review endpoint. */
     public function review(User $user, InternDocument $document): bool
     {
         return $user->hasRole('admin', 'peso_manager');

@@ -93,8 +93,8 @@ class DashboardController extends Controller
                 $docs = $internSelf->internDocuments;
                 $internStats['total_docs'] = $docs->count();
                 $internStats['approved_docs'] = $docs->where('review_status', 'approved')->count();
-                $internStats['pending_docs'] = $docs->where('review_status', 'pending')->count();
-                $internStats['rejected_docs'] = $docs->where('review_status', 'rejected')->count();
+                $internStats['pending_docs'] = $docs->whereIn('review_status', ['pending_peso', 'pending_admin'])->count();
+                $internStats['rejected_docs'] = $docs->whereIn('review_status', ['returned_to_peso', 'returned_to_intern', 'rejected'])->count();
                 $internDocuments = $docs->sortByDesc('created_at')->take(5);
 
                 $workCalendar = app(InternWorkCalendar::class)

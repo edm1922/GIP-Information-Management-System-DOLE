@@ -6,6 +6,7 @@ use App\Models\DocumentType;
 use App\Models\DtrDay;
 use App\Models\Intern;
 use App\Models\InternDocument;
+use App\Models\InternDocumentReviewEvent;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -17,11 +18,9 @@ use RuntimeException;
 /**
  * Handles synchronous uploads of intern documents.
  *
- * Intern documents are stored on the `local` disk under
- * `intern-docs/{intern_id}/`. They reuse the shared `documents` table via the
- * InternDocument model and are never indexed by Scout. When a Daily Time
- * Record (DTR) is uploaded with a rendered-hours value, the intern's
- * `rendered_hours` counter is incremented within the same transaction.
+ * Interns (and admins uploading on their behalf) select the working dates;
+ * per-day hours are assigned later by an Admin during the final approval step.
+ * DTR scans are only evidence for reviewers — the dtr_days rows are the record.
  */
 class InternDocumentUploadService
 {
@@ -64,15 +63,31 @@ class InternDocumentUploadService
                     'mime_type' => $file->getMimeType() ?: 'application/octet-stream',
                     'status' => 'active',
                     'document_period' => $validatedData['document_period'] ?? null,
-                    'review_status' => 'pending',
+                    'review_status' => InternDocument::STATUS_PENDING_PESO,
                 ]);
 
                 if ($documentType->code === 'DTR') {
                     $this->storeDtrDays($document, $intern, $validatedData);
                 } elseif (! empty($validatedData['hours'])) {
-                    // Non-DTR documents may still carry an hours value.
+                    // Non-DTR documents uploaded by an admin may still carry an hours value.
                     $intern->increment('rendered_hours', (int) $validatedData['hours']);
                 }
+
+                InternDocumentReviewEvent::create([
+                    'document_id' => $document->id,
+                    'actor_id' => $user->id,
+                    'actor_role' => $user->role,
+                    'action' => 'uploaded',
+                    'from_status' => null,
+                    'to_status' => InternDocument::STATUS_PENDING_PESO,
+                    'remarks' => null,
+                    'metadata' => [
+                        'document_type' => $documentType->code,
+                        'days' => $documentType->code === 'DTR'
+                            ? array_values(array_unique(array_filter((array) ($validatedData['days'] ?? []))))
+                            : null,
+                    ],
+                ]);
 
                 AuditService::log(
                     'uploaded',
@@ -91,46 +106,58 @@ class InternDocumentUploadService
     }
 
     /**
-     * Persist the working days claimed on a DTR and advance the intern's
-     * rendered-hours counter by the claimed total.
-     *
-     * The uploaded scan is only evidence for the reviewer; these rows are the
-     * authoritative record used by the intern work calendar.
+     * Replace the evidence file on an existing document (resubmission).
+     * The previous file is preserved on disk and linked in the review history.
+     */
+    public function replaceFile(InternDocument $document, UploadedFile $file): string
+    {
+        $extension = strtolower($file->getClientOriginalExtension() ?: 'bin');
+        $directory = "intern-docs/{$document->intern_id}";
+        $baseFilename = $this->buildBaseFilename($document->intern_id, $document->documentType?->code ?? 'DOC', $extension);
+        $resolvedFilename = $this->resolveUniqueFilename($directory, $baseFilename, $extension);
+        $relativePath = "{$directory}/{$resolvedFilename}";
+
+        $stored = Storage::disk('local')->put($relativePath, file_get_contents($file->getRealPath()));
+        if (! $stored) {
+            throw new RuntimeException('Unable to store the replacement file.');
+        }
+
+        $document->forceFill([
+            'file_path' => $relativePath,
+            'original_filename' => $file->getClientOriginalName(),
+            'system_filename' => $resolvedFilename,
+            'file_size_bytes' => (int) $file->getSize(),
+            'mime_type' => $file->getMimeType() ?: 'application/octet-stream',
+        ])->save();
+
+        return $relativePath;
+    }
+
+    /**
+     * Persist the working days claimed on a DTR. Hours stay null until an
+     * Admin assigns them during final review.
      */
     private function storeDtrDays(InternDocument $document, Intern $intern, array $validatedData): void
     {
         $days = array_values(array_unique(array_filter((array) ($validatedData['days'] ?? []))));
         sort($days);
-        $defaultHours = (float) ($validatedData['hours_per_day'] ?? 8);
-        $dayHours = (array) ($validatedData['day_hours'] ?? []);
 
-        $rows = array_map(function (string $day) use ($document, $intern, $dayHours, $defaultHours) {
-            $hours = isset($dayHours[$day]) && is_numeric($dayHours[$day])
-                ? (float) $dayHours[$day]
-                : $defaultHours;
-
-            return [
-                'document_id' => $document->id,
-                'intern_id' => $intern->id,
-                'work_date' => $day,
-                'hours' => round($hours, 1),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-        }, $days);
+        $rows = array_map(fn (string $day) => [
+            'document_id' => $document->id,
+            'intern_id' => $intern->id,
+            'work_date' => $day,
+            'hours' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ], $days);
 
         if ($rows !== []) {
             DtrDay::insert($rows);
         }
 
-        // Hours are credited only after the DTR is approved; recalculating here
-        // keeps rendered_hours in step with the days just stored.
-        app(InternHoursService::class)->recalculate($intern);
-
         $metadata = array_merge((array) $document->metadata, [
             'dtr_days_count' => count($rows),
-            'default_hours_per_day' => $defaultHours,
-            'dtr_total_hours' => round(array_sum(array_column($rows, 'hours')), 1),
+            'dtr_dates' => $days,
         ]);
 
         if (empty($validatedData['document_period']) && $rows !== []) {
@@ -138,7 +165,7 @@ class InternDocumentUploadService
             $last = Carbon::createFromFormat('Y-m-d', $days[count($days) - 1]);
             $metadata['document_period'] = $first->isSameDay($last)
                 ? $first->format('M d, Y')
-                : $first->format('M d, Y').' – '.$last->format('M d, Y');
+                : $first->format('M d, Y').' - '.$last->format('M d, Y');
             $document->forceFill([
                 'document_period' => $metadata['document_period'],
                 'metadata' => $metadata,

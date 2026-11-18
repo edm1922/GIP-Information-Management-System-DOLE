@@ -141,6 +141,33 @@ Route::middleware('auth')->group(function () {
         Route::patch('/{document}/review', [InternDocumentController::class, 'review'])
             ->middleware('role:admin,peso_manager')
             ->name('review');
+
+        Route::get('/{document}/history', [InternDocumentController::class, 'history'])
+            ->middleware('can:view,document')
+            ->name('history');
+
+        Route::patch('/{document}/hours', [InternDocumentController::class, 'saveHours'])
+            ->middleware('role:admin')
+            ->name('hours');
+
+        Route::post('/{document}/peso-approve', [InternDocumentController::class, 'pesoApprove'])
+            ->middleware('role:peso_manager')
+            ->name('peso-approve');
+
+        Route::post('/{document}/peso-return', [InternDocumentController::class, 'pesoReturn'])
+            ->middleware('role:peso_manager')
+            ->name('peso-return');
+
+        Route::post('/{document}/admin-approve', [InternDocumentController::class, 'adminApprove'])
+            ->middleware('role:admin')
+            ->name('admin-approve');
+
+        Route::post('/{document}/admin-return', [InternDocumentController::class, 'adminReturn'])
+            ->middleware('role:admin')
+            ->name('admin-return');
+
+        Route::post('/{document}/resubmit', [InternDocumentController::class, 'resubmit'])
+            ->name('resubmit');
     });
 
     // ── Intern Self-Service ──

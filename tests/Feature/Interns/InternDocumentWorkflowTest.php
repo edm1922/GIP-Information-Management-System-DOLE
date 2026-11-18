@@ -19,11 +19,8 @@ function makeInternDocumentType(string $code = 'DTR'): DocumentType
     ]);
 }
 
-it('lets an intern upload a DTR with selected days but credits hours only after approval', function () {
-    Storage::fake('local');
-
-    $type = makeInternDocumentType('DTR');
-
+function workflowBladeIntern(): array
+{
     $user = User::factory()->intern()->create();
     $intern = Intern::create([
         'user_id' => $user->id,
@@ -32,52 +29,45 @@ it('lets an intern upload a DTR with selected days but credits hours only after 
         'status' => 'active',
     ]);
 
+    return [$user, $intern];
+}
+
+it('lets an intern select days without entering hours and credits them only after the full workflow', function () {
+    Storage::fake('local');
+
+    $type = makeInternDocumentType('DTR');
+    [$user, $intern] = workflowBladeIntern();
     $worked = [now()->subDays(3)->format('Y-m-d'), now()->subDays(2)->format('Y-m-d')];
 
     $response = $this->actingAs($user)->post(route('intern-documents.store'), [
         'document_type_id' => $type->id,
         'days' => $worked,
-        'hours_per_day' => 8,
         'file' => UploadedFile::fake()->create('dtr.pdf', 50, 'application/pdf'),
     ]);
 
     $response->assertRedirect(route('my-internship.index'));
     $response->assertSessionHasNoErrors();
 
-    $intern->refresh();
-    // Pending DTRs are not credited yet.
-    expect($intern->rendered_hours)->toBe(0.0)
-        ->and($intern->pending_hours)->toBe(16.0);
+    $document = InternDocument::firstOrFail();
 
-    $document = InternDocument::first();
-    expect($document)->not->toBeNull();
-    expect((int) $document->intern_id)->toBe((int) $intern->id);
-    expect($document->review_status)->toBe('pending');
-    expect($document->file_path)->toStartWith('intern-docs/'.$intern->id.'/');
-    expect($document->dtrDays()->count())->toBe(2);
-    Storage::disk('local')->assertExists($document->file_path);
+    expect($document->review_status)->toBe(InternDocument::STATUS_PENDING_PESO)
+        ->and($document->dtrDays()->count())->toBe(2)
+        ->and($document->dtrDays()->whereNotNull('hours')->count())->toBe(0)
+        ->and($intern->fresh()->rendered_hours)->toBe(0.0)
+        ->and($intern->fresh()->pending_hours)->toBe(0.0);
 
-    // Approval is what credits the hours.
-    $admin = User::factory()->admin()->create();
-    $this->actingAs($admin)
-        ->patch(route('intern-documents.review', $document), ['decision' => 'approved'])
-        ->assertSessionHasNoErrors();
+    [$admin] = apiApproveInternDocumentThroughWorkflow($document);
 
-    expect($intern->fresh()->rendered_hours)->toBe(16.0);
+    expect($document->fresh()->review_status)->toBe(InternDocument::STATUS_APPROVED)
+        ->and($document->fresh()->admin_reviewed_by)->toBe($admin->id)
+        ->and($intern->fresh()->rendered_hours)->toBe(16.0);
 });
 
 it('rejects a DTR upload without selected working days', function () {
     Storage::fake('local');
 
     $type = makeInternDocumentType('DTR');
-
-    $user = User::factory()->intern()->create();
-    Intern::create([
-        'user_id' => $user->id,
-        'required_hours' => 486,
-        'rendered_hours' => 0,
-        'status' => 'active',
-    ]);
+    [$user] = workflowBladeIntern();
 
     $response = $this->actingAs($user)->post(route('intern-documents.store'), [
         'document_type_id' => $type->id,
@@ -88,42 +78,38 @@ it('rejects a DTR upload without selected working days', function () {
     expect(InternDocument::count())->toBe(0);
 });
 
-it('notifies the PESO team and allows an admin to approve an uploaded document', function () {
+it('notifies only PESO on upload, then Admin and intern as the workflow advances', function () {
     Storage::fake('local');
 
     $type = makeInternDocumentType('AR');
-
+    [$internUser, $intern] = workflowBladeIntern();
     $admin = User::factory()->admin()->create();
-    $internUser = User::factory()->intern()->create();
-    $intern = Intern::create([
-        'user_id' => $internUser->id,
-        'required_hours' => 486,
-        'rendered_hours' => 0,
-        'status' => 'active',
-    ]);
+    $peso = User::factory()->pesoManager()->create();
 
     $this->actingAs($internUser)->post(route('intern-documents.store'), [
         'document_type_id' => $type->id,
         'file' => UploadedFile::fake()->create('ar.pdf', 40, 'application/pdf'),
     ])->assertSessionHasNoErrors();
 
-    $document = InternDocument::first();
-    expect($document->review_status)->toBe('pending');
+    $document = InternDocument::firstOrFail();
 
-    // Admin (PESO team) was notified of the upload.
-    expect($admin->fresh()->notifications()->count())->toBeGreaterThanOrEqual(1);
+    expect($peso->fresh()->unreadNotifications()->count())->toBe(1)
+        ->and($admin->fresh()->unreadNotifications()->count())->toBe(0);
 
-    $this->actingAs($admin)->patch(route('intern-documents.review', $document), [
-        'decision' => 'approved',
-    ])->assertSessionHasNoErrors();
+    $this->actingAs($peso)->post(route('intern-documents.peso-approve', $document))
+        ->assertRedirect()
+        ->assertSessionHas('success');
 
-    $document->refresh();
-    expect($document->review_status)->toBe('approved');
-    expect((int) $document->reviewed_by)->toBe((int) $admin->id);
-    expect($document->reviewed_at)->not->toBeNull();
+    expect($document->fresh()->review_status)->toBe(InternDocument::STATUS_PENDING_ADMIN)
+        ->and($admin->fresh()->unreadNotifications()->count())->toBe(1);
 
-    // Intern was notified of the review outcome.
-    expect($internUser->fresh()->notifications()->count())->toBeGreaterThanOrEqual(1);
+    $this->actingAs($admin)->post(route('intern-documents.admin-approve', $document))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    expect($document->fresh()->review_status)->toBe(InternDocument::STATUS_APPROVED)
+        ->and($document->fresh()->admin_reviewed_by)->toBe($admin->id)
+        ->and($internUser->fresh()->unreadNotifications()->count())->toBe(1);
 });
 
 it('prevents an intern from downloading another intern\'s document', function () {
@@ -131,22 +117,15 @@ it('prevents an intern from downloading another intern\'s document', function ()
 
     $type = makeInternDocumentType('AR');
 
-    $ownerUser = User::factory()->intern()->create();
-    $owner = Intern::create([
-        'user_id' => $ownerUser->id, 'required_hours' => 486, 'rendered_hours' => 0, 'status' => 'active',
-    ]);
-
-    $otherUser = User::factory()->intern()->create();
-    Intern::create([
-        'user_id' => $otherUser->id, 'required_hours' => 486, 'rendered_hours' => 0, 'status' => 'active',
-    ]);
+    [$ownerUser] = workflowBladeIntern();
+    [$otherUser] = workflowBladeIntern();
 
     $this->actingAs($ownerUser)->post(route('intern-documents.store'), [
         'document_type_id' => $type->id,
         'file' => UploadedFile::fake()->create('ar.pdf', 40, 'application/pdf'),
-    ]);
+    ])->assertSessionHasNoErrors();
 
-    $document = InternDocument::first();
+    $document = InternDocument::firstOrFail();
 
     $this->actingAs($otherUser)
         ->get(route('intern-documents.download', $document))
@@ -157,34 +136,28 @@ it('allows an intern and admin to preview a document inline with appropriate con
     Storage::fake('local');
 
     $type = makeInternDocumentType('DTR');
-    $user = User::factory()->intern()->create();
-    $intern = Intern::create([
-        'user_id' => $user->id, 'required_hours' => 486, 'rendered_hours' => 0, 'status' => 'active',
-    ]);
+    [$user] = workflowBladeIntern();
 
     $this->actingAs($user)->post(route('intern-documents.store'), [
         'document_type_id' => $type->id,
         'days' => [now()->subDays(2)->format('Y-m-d')],
-        'hours_per_day' => 8,
         'file' => UploadedFile::fake()->create('report.pdf', 30, 'application/pdf'),
     ]);
 
-    $document = InternDocument::first();
+    $document = InternDocument::firstOrFail();
 
-    // The owner intern can preview the document inline
     $response = $this->actingAs($user)->get(route('intern-documents.preview', $document));
     $response->assertOk();
     $response->assertHeader('Content-Disposition');
     expect($response->headers->get('Content-Disposition'))->toContain('inline');
 
-    // Admin can also preview it
-    $admin = User::factory()->admin()->create();
-    $adminResponse = $this->actingAs($admin)->get(route('intern-documents.preview', $document));
-    $adminResponse->assertOk();
+    $this->actingAs(User::factory()->admin()->create())
+        ->get(route('intern-documents.preview', $document))
+        ->assertOk();
 
-    // Another intern cannot preview it
-    $other = User::factory()->intern()->create();
-    $this->actingAs($other)->get(route('intern-documents.preview', $document))->assertForbidden();
+    $this->actingAs(User::factory()->intern()->create())
+        ->get(route('intern-documents.preview', $document))
+        ->assertForbidden();
 });
 
 it('marks interns as completed when the completion threshold is reached', function () {

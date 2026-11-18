@@ -72,3 +72,29 @@ function apiInternDocumentType(string $code = 'DTR'): DocumentType
         'is_optional' => false,
     ]);
 }
+
+/**
+ * Drive a DTR/document through the sequential PESO → Admin workflow.
+ *
+ * @return array{0: User, 1: User} [admin, peso]
+ */
+function apiApproveInternDocumentThroughWorkflow(\App\Models\InternDocument $document, ?\App\Models\User $admin = null, ?\App\Models\User $peso = null, array $hours = []): array
+{
+    $admin ??= User::factory()->admin()->create();
+    $peso ??= User::factory()->pesoManager()->create();
+    $service = app(\App\Services\InternDocumentWorkflowService::class);
+
+    if ($document->review_status === \App\Models\InternDocument::STATUS_PENDING_PESO) {
+        $service->pesoApprove($document, $peso);
+    }
+
+    if ($document->documentType?->code === 'DTR') {
+        $days = $document->dtrDays()->get();
+        $map = $hours ?: $days->mapWithKeys(fn ($day) => [$day->work_date->format('Y-m-d') => 8])->all();
+        $service->saveHours($document->fresh(), $admin, $map);
+    }
+
+    $service->adminApprove($document->fresh(), $admin);
+
+    return [$admin, $peso];
+}
