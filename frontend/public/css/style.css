@@ -1197,18 +1197,6 @@
         width: 100%;
         padding: 40px 20px;
     }
-
-    .overlay-panel {
-    background: #f6f7fb;
-    color: #1f2937;
-    width: 45%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    padding: 0 40px;
-    text-align: center;
-}
 }
 
 /* Upload Zone / Dropzone */

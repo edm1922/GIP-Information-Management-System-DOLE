@@ -48,7 +48,7 @@ export default function LoginPage() {
       <div className="login-container">
         <div className="overlay-panel">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/image/dole-logo.png" alt={`${brandShort} Logo`} style={{ height: 150, marginBottom: 2 }} />
+          <img src="/image/dole-logo.png" alt={`${brandShort} Logo`} className="login-logo" />
 
           <h2>Welcome</h2>
           <p>Welcome to the {brandName}</p>

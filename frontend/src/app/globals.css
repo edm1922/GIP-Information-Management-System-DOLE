@@ -457,3 +457,308 @@ a {
   border-radius: 3px;
   display: inline-block;
 }
+
+
+/* ==========================================================================
+   Mobile responsiveness layer (SPA only)
+
+   The desktop design lives in the preserved Blade stylesheets
+   (public/css/style.css, app.css, dashboard.css). Everything below is scoped
+   to the small-screen media queries so the desktop composition is unchanged.
+   public/css/style.css contains the original mobile login block; the 45 %
+   overlay width bug that left an empty column on phones is fixed there.
+   ========================================================================== */
+
+/* Desktop defaults for elements whose size used to be an inline style. */
+.login-logo {
+  height: 150px;
+  margin-bottom: 2px;
+}
+.dashboard-chart-canvas {
+  height: 300px;
+}
+
+/* Prevent accidental page-level horizontal scroll on narrow screens. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+img,
+svg {
+  max-width: 100%;
+}
+.main-content {
+  overflow-wrap: break-word;
+}
+
+/* Tables scroll inside their card instead of widening the page. */
+.table-responsive {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* -------------------------------------------------------------------------
+   Phones / small tablets
+   ------------------------------------------------------------------------- */
+@media (max-width: 767.98px) {
+  /* App shell: topbar, drawer and content padding. */
+  .topbar__inner {
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  .topbar__brand {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-right: 2px !important;
+    font-size: 0.9rem !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .topbar__brand img {
+    height: 30px !important;
+    flex-shrink: 0;
+  }
+  .topbar__actions {
+    flex-shrink: 0;
+    gap: 6px !important;
+  }
+  .topbar__icon-btn,
+  .topbar__user-trigger {
+    width: 38px !important;
+    height: 38px !important;
+  }
+  .sidebar-drawer {
+    width: min(280px, 86vw) !important;
+  }
+  .main-content {
+    padding: 1rem 0.9rem calc(1.25rem + env(safe-area-inset-bottom)) !important;
+    padding-top: calc(58px + 0.75rem) !important;
+    min-height: 100dvh;
+  }
+
+  /* Tables: keep rows readable without forcing page width. */
+  .table-responsive table.table {
+    font-size: 0.84rem;
+  }
+  .table-responsive .btn-sm {
+    padding: 0.3rem 0.45rem;
+  }
+
+  /* Forms: comfortable touch targets, no iOS zoom on focus. */
+  .main-content .form-label {
+    font-size: 0.85rem;
+    margin-bottom: 0.3rem;
+  }
+  .main-content input:not([type="checkbox"]):not([type="radio"]),
+  .main-content select,
+  .main-content textarea {
+    font-size: 16px !important;
+  }
+  .main-content .form-control,
+  .main-content .form-select {
+    min-height: 44px;
+  }
+
+  /* Modals: fit the viewport and scroll internally. */
+  .modal-dialog {
+    margin: 0.75rem auto !important;
+    max-width: calc(100vw - 1.5rem) !important;
+  }
+  .modal-content {
+    max-height: calc(100dvh - 1.5rem) !important;
+  }
+  .modal-body {
+    overflow-y: auto !important;
+  }
+  .modal-footer {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* Dashboard toolbar: title / year / date pill stack instead of clipping. */
+  .dashboard-header {
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-bottom: 1rem !important;
+  }
+  .dashboard-header > div:first-child {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .dashboard-header__controls {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.5rem !important;
+  }
+  .dashboard-header__controls .form-select {
+    flex: 0 0 auto;
+    max-width: 110px;
+  }
+  .dashboard-header .calendar-wrapper {
+    margin-left: auto;
+  }
+  .date-pill {
+    padding: 0.45rem 0.7rem !important;
+    font-size: 0.82rem !important;
+    gap: 0.4rem !important;
+    white-space: nowrap;
+  }
+  .calendar-dropdown {
+    width: min(280px, calc(100vw - 2rem)) !important;
+  }
+
+  /* Welcome card: long names/office text wraps, CTA stays reachable. */
+  .intern-welcome .intern-welcome__body {
+    padding: 1.1rem !important;
+  }
+  .intern-welcome h2 {
+    font-size: 1.3rem !important;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+  .intern-welcome p {
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+  }
+  .intern-welcome__body > div:last-child {
+    width: 100%;
+  }
+  .intern-welcome__body > div:last-child .btn {
+    width: 100%;
+  }
+
+  /* Stat cards and chart panels: compact but chunky enough to tap. */
+  .stat-cards-frame {
+    padding: 0.9rem !important;
+  }
+  .main-content .stat-card {
+    padding: 0.85rem !important;
+  }
+  .stat-title {
+    font-size: 0.72rem;
+  }
+  .main-content .stat-value-large {
+    font-size: 1.45rem !important;
+  }
+  .dashboard-chart-canvas {
+    height: 220px !important;
+  }
+  .main-content .graph-container {
+    min-height: auto !important;
+    padding: 1rem !important;
+  }
+  .main-content .dashboard-section-title {
+    font-size: 0.95rem;
+  }
+
+  /* Login: single column, compact branding, form visible without scrolling. */
+  .login-page-wrapper {
+    min-height: 100dvh;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+    justify-content: center;
+    background-attachment: scroll !important;
+    background-position: center center !important;
+    background-size: cover !important;
+  }
+  .login-container {
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 430px;
+    min-height: auto !important;
+    border-radius: 18px !important;
+  }
+  .overlay-panel {
+    width: 100% !important;
+    padding: 20px 20px 4px !important;
+  }
+  .overlay-panel img,
+  .login-logo {
+    height: 84px !important;
+  }
+  .overlay-panel h2 {
+    font-size: 1.5rem !important;
+    margin: 6px 0 2px !important;
+  }
+  .overlay-panel p {
+    font-size: 0.82rem;
+    line-height: 1.35;
+    margin: 2px 0 0;
+  }
+  .form-panel {
+    width: 100% !important;
+    padding: 2px 22px 24px !important;
+  }
+  .form-panel h1 {
+    font-size: 1.9rem !important;
+    margin: 8px 0 2px !important;
+  }
+  .form-panel span {
+    margin-bottom: 12px;
+  }
+  .form-panel input {
+    padding: 14px 15px !important;
+    margin: 6px 0 !important;
+    border-radius: 10px !important;
+    font-size: 16px !important;
+  }
+  .btn-signin {
+    width: 100%;
+    max-width: 300px;
+    min-height: 46px;
+    margin-top: 14px;
+    font-size: 0.8rem;
+  }
+
+  /* Notifications and long badge rows wrap instead of overflowing. */
+  .notif-actions {
+    flex-wrap: wrap;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Very small phones (320-430 px)
+   ------------------------------------------------------------------------- */
+@media (max-width: 430px) {
+  .overlay-panel img,
+  .login-logo {
+    height: 72px !important;
+  }
+  .overlay-panel h2 {
+    font-size: 1.35rem !important;
+  }
+  .form-panel h1 {
+    font-size: 1.7rem !important;
+  }
+  .dashboard-header h2 {
+    font-size: 1.2rem;
+  }
+  .main-content .stat-value-large {
+    font-size: 1.3rem !important;
+  }
+  .intern-welcome h2 {
+    font-size: 1.2rem !important;
+  }
+  .modal-footer .btn {
+    flex: 1 1 auto;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   Tablets: keep two-column login and relax dashboard padding.
+   ------------------------------------------------------------------------- */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .login-page-wrapper {
+    padding: 24px;
+    background-attachment: scroll !important;
+  }
+  .login-container {
+    max-width: 760px;
+  }
+  .main-content {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+}

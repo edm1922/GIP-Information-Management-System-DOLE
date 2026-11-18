@@ -104,13 +104,13 @@ export default function DashboardPage() {
     <>
       <link rel="stylesheet" href="/css/dashboard.css" />
 
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      <div className="d-flex justify-content-between align-items-center mb-4 dashboard-header">
         <div>
           <h2 className="h4 mb-0 fw-bold">Dashboard</h2>
           <small>Welcome to the {brandName}</small>
         </div>
 
-        <div className="d-flex align-items-center gap-3">
+        <div className="d-flex align-items-center gap-3 dashboard-header__controls">
           <select
             className="form-select form-select-sm w-auto"
             value={year}
@@ -341,14 +341,14 @@ function InternPortalDashboard({
       {/* Welcome banner */}
       <div className="col-12">
         <div
-          className="card shadow-sm border-0"
+          className="card shadow-sm border-0 intern-welcome"
           style={{
             background: "linear-gradient(135deg, #1E429B 0%, #2563eb 100%)",
             color: "#fff",
             borderRadius: 12,
           }}
         >
-          <div className="card-body p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div className="card-body p-4 d-flex flex-wrap justify-content-between align-items-center gap-3 intern-welcome__body">
             <div>
               <div className="d-flex align-items-center gap-2 mb-2 flex-wrap">
                 <span className="badge bg-white text-primary fw-bold px-2 py-1">Intern Portal</span>

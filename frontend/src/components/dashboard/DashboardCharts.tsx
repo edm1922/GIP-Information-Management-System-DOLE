@@ -166,7 +166,7 @@ export function DashboardCharts({
           <h3 className="dashboard-section-title mb-3">
             <i className="fas fa-chart-line" style={{ color: "var(--company-primary)" }} /> Interns Onboarded
           </h3>
-          <div className="mt-2" style={{ height: 300 }}>
+          <div className="mt-2 dashboard-chart-canvas">
             <canvas ref={trendRef} />
           </div>
         </div>
@@ -177,7 +177,7 @@ export function DashboardCharts({
           <h3 className="dashboard-section-title mb-3">
             <i className="fas fa-chart-pie" style={{ color: "var(--company-primary)" }} /> Status Distribution
           </h3>
-          <div className="mt-2" style={{ height: 300 }}>
+          <div className="mt-2 dashboard-chart-canvas">
             <canvas ref={statusRef} />
           </div>
         </div>
@@ -188,7 +188,7 @@ export function DashboardCharts({
           <h3 className="dashboard-section-title mb-3">
             <i className="fas fa-handshake" style={{ color: "var(--company-primary)" }} /> Partner Agency Distribution
           </h3>
-          <div className="mt-2" style={{ height: 300 }}>
+          <div className="mt-2 dashboard-chart-canvas">
             <canvas ref={agencyRef} />
           </div>
         </div>
