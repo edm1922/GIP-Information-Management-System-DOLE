@@ -348,3 +348,26 @@ it('blocks resubmission when a soft-deleted account still owns the email', funct
         'email' => 'deleted.account@example.test',
     ]))->assertStatus(422)->assertJsonValidationErrors('email');
 });
+
+it('notifies admins and peso managers when an application is submitted', function () {
+    $admin = User::factory()->admin()->create();
+    $peso = User::factory()->pesoManager()->create();
+    $internUser = User::factory()->intern()->create();
+    $link = registrationLinkFor($admin);
+
+    $this->postJson("/api/v1/public/registration/{$link->token}/applications", applicationPayload())
+        ->assertCreated();
+
+    expect($admin->fresh()->unreadNotifications()->count())->toBe(1)
+        ->and($peso->fresh()->unreadNotifications()->count())->toBe(1)
+        ->and($internUser->fresh()->unreadNotifications()->count())->toBe(0);
+
+    $notification = $admin->fresh()->unreadNotifications()->first();
+    expect($notification->data['url'])->toBe('/interns/applications')
+        ->and($notification->data['message'])->toContain('submitted an intern application');
+
+    $this->actingAs($admin)
+        ->getJson('/api/v1/notifications')
+        ->assertOk()
+        ->assertJsonPath('unread_count', 1);
+});

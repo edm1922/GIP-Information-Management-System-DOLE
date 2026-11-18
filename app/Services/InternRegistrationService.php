@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\InternApplication;
 use App\Models\InternRegistrationLink;
 use App\Models\User;
+use App\Notifications\InternApplicationSubmitted;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -78,7 +79,7 @@ class InternRegistrationService
     {
         $email = strtolower(trim((string) $data['email']));
 
-        return DB::transaction(function () use ($link, $data, $email) {
+        $application = DB::transaction(function () use ($link, $data, $email) {
             $busyApplication = InternApplication::query()
                 ->where('email', $email)
                 ->whereIn('status', ['pending', 'approved'])
@@ -122,6 +123,20 @@ class InternRegistrationService
 
             return $application;
         });
+
+        // Notify reviewers after the row is safely stored (topbar bell badge).
+        $this->notifyReviewers($application);
+
+        return $application;
+    }
+
+    private function notifyReviewers(InternApplication $application): void
+    {
+        User::query()
+            ->whereIn('role', ['admin', 'peso_manager'])
+            ->where('is_active', true)
+            ->get()
+            ->each(fn (User $reviewer) => $reviewer->notify(new InternApplicationSubmitted($application)));
     }
 
     private function reference(): string
