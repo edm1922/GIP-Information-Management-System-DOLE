@@ -59,7 +59,7 @@ it('returns only whitelisted user fields on auth endpoints', function () {
         ->assertOk()
         ->assertJsonStructure([
             'user' => [
-                'id', 'username', 'first_name', 'middle_name', 'last_name', 'suffix',
+                'id', 'username', 'email', 'first_name', 'middle_name', 'last_name', 'suffix',
                 'name', 'role', 'is_active', 'must_change_password', 'last_active_at',
                 'created_at', 'updated_at',
             ],
@@ -68,7 +68,6 @@ it('returns only whitelisted user fields on auth endpoints', function () {
 
     $response->assertJsonMissingPath('user.password');
     $response->assertJsonMissingPath('user.remember_token');
-    $response->assertJsonMissingPath('user.email');
     $response->assertJsonMissingPath('user.email_verified_at');
 });
 

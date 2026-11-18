@@ -24,6 +24,7 @@ class AuditService
                 'App\Models\User' => $model->username ?? $model->name,
                 'App\Models\DocumentType' => $model->name,
                 'App\Models\Company' => $model->name,
+                'App\Models\InternApplication' => $model->name.' ('.$model->reference.')',
                 default => 'ID: '.$model->id
             };
         }

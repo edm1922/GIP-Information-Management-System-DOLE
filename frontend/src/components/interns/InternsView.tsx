@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { Modal } from "@/components/ui/Modal";
 import { Pagination } from "@/components/ui/Pagination";
+import { RegistrationLinkModal } from "@/components/interns/RegistrationLinkModal";
 import { ApiError, api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { formatDate, formatNumber, statusBadgeClass, ucfirst } from "@/lib/format";
@@ -41,9 +42,12 @@ function messageFor(action: ConfirmAction): { title: string; message: string; su
 
 /** Intern roster — `interns/index.blade.php`. */
 export function InternsView() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isPesoManager } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const staff = isAdmin || isPesoManager;
+  const [linkOpen, setLinkOpen] = useState(false);
 
   const query = searchParams.toString();
   const archived = searchParams.get("archived") === "1";
@@ -147,7 +151,21 @@ export function InternsView() {
             Manage the GIP / internship program roster and hour monitoring.
           </p>
         </div>
-        <div className="d-flex gap-2">
+        <div className="d-flex flex-wrap gap-2">
+          {staff && (
+            <a className="btn btn-outline-primary d-inline-flex align-items-center gap-2" href="/interns/applications">
+              <i className="fas fa-clipboard-check" /> Applications
+            </a>
+          )}
+          {staff && (
+            <button
+              type="button"
+              className="btn btn-outline-secondary d-inline-flex align-items-center gap-2"
+              onClick={() => setLinkOpen(true)}
+            >
+              <i className="fas fa-link" /> Registration Link
+            </button>
+          )}
           {isAdmin && (
             <button
               type="button"
@@ -380,6 +398,8 @@ export function InternsView() {
       >
         {confirming ? messageFor(confirming).message : null}
       </Modal>
+
+      <RegistrationLinkModal show={linkOpen} onClose={() => setLinkOpen(false)} />
     </>
   );
 }

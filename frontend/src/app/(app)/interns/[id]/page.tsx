@@ -143,6 +143,9 @@ export default function InternDetailPage() {
                 <li className="mb-1">
                   <strong>Contract:</strong> {formatDate(intern.contract_start_date)} &ndash; {formatDate(intern.contract_end_date)}
                 </li>
+                <li className="mb-1">
+                  <strong>Email:</strong> {intern.user?.email ?? "-"}
+                </li>
                 <li>
                   <strong>Username:</strong> <code>{intern.user?.username}</code>
                 </li>

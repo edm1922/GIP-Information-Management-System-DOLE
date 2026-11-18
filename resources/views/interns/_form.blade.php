@@ -37,6 +37,11 @@
         <input type="text" name="username" class="form-control" value="{{ $val('username') }}" required>
         <div class="form-text">Default password: <code>{{ strtolower(old('last_name', $user?->last_name ?? 'lastname')) . config('brand.password_suffix') }}</code></div>
     </div>
+    <div class="col-md-4">
+        <label class="form-label">Email Address <span class="text-danger">*</span></label>
+        <input type="email" name="email" class="form-control" value="{{ $val('email') }}" {{ $intern ? '' : 'required' }}>
+        <div class="form-text">Login credentials are sent to this address.</div>
+    </div>
 </div>
 
 <h6 class="text-uppercase text-muted fw-bold mb-3" style="font-size: 0.75rem;">Placement &amp; Contract</h6>

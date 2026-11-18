@@ -784,3 +784,53 @@ svg {
     min-height: 46px;
   }
 }
+
+/* Public intern self-registration page */
+.register-page {
+  min-height: 100dvh;
+  background: #f6f7fb;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.25rem 0.9rem calc(1.25rem + env(safe-area-inset-bottom));
+}
+.register-card {
+  width: 100%;
+  max-width: 640px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  padding: 1.5rem;
+  margin: 2rem auto;
+}
+.register-logo {
+  height: 72px;
+  width: auto;
+}
+.register-reference {
+  background: #eff6ff;
+  border: 1px dashed #93c5fd;
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.9rem;
+  color: #1e3a8a;
+}
+.register-qr {
+  width: 150px;
+  height: 150px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+@media (max-width: 575.98px) {
+  .register-card {
+    padding: 1.1rem;
+    margin: 1rem auto;
+  }
+  .register-logo {
+    height: 60px;
+  }
+  .register-qr {
+    width: 120px;
+    height: 120px;
+  }
+}

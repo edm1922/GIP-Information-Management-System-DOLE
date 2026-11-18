@@ -31,13 +31,15 @@ it('creates an intern together with a linked login account', function () {
     $response = $this->actingAs($admin)->postJson('/api/v1/interns', [
         'first_name' => 'Juan',
         'last_name' => 'Dela Cruz',
+        'email' => 'api-juandc@example.test',
         'username' => 'api-juandc',
         'required_hours' => 486,
         'status' => 'active',
     ]);
 
     $response->assertCreated()
-        ->assertJsonPath('intern.user.username', 'api-juandc');
+        ->assertJsonPath('intern.user.username', 'api-juandc')
+        ->assertJsonPath('intern.user.email', 'api-juandc@example.test');
 
     $intern = Intern::firstOrFail();
     $user = User::where('username', 'api-juandc')->firstOrFail();

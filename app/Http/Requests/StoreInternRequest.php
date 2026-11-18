@@ -34,6 +34,7 @@ class StoreInternRequest extends FormRequest
             'middle_name' => ['nullable', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
             'suffix' => ['nullable', 'string', 'max:20'],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:users,email'],
             'username' => ['required', 'string', 'max:50', 'unique:users,username'],
 
             // Placement
@@ -65,6 +66,8 @@ class StoreInternRequest extends FormRequest
     {
         return [
             'username.unique' => 'This username is already taken.',
+            'email.unique' => 'An account with this email address already exists.',
+            'email.required' => 'An email address is required so the intern can receive their login credentials.',
             'contract_end_date.after_or_equal' => 'The contract end date must be on or after the start date.',
             'required_hours.required' => 'Required hours is required.',
         ];

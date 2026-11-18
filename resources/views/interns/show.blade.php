@@ -61,6 +61,7 @@
                             {{ $intern->contract_end_date?->format('M d, Y') ?? '—' }}
                         </li>
                         <li><strong>Username:</strong> <code>{{ $intern->user?->username }}</code></li>
+                    <li><strong>Email:</strong> {{ $intern->user?->email ?? '—' }}</li>
                     </ul>
                 </div>
             </div>

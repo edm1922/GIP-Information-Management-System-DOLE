@@ -36,4 +36,26 @@ return [
     */
     'contract_expiry_warning_days' => env('INTERNSHIP_CONTRACT_EXPIRY_WARNING_DAYS', 7),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Public intern self-registration
+    |--------------------------------------------------------------------------
+    |
+    | A shared registration link lets applicants submit an application without
+    | logging in. The link is an unguessable token embedded in the SPA URL;
+    | approval is still required before an intern/user account is created.
+    |
+    */
+    'registration' => [
+        // Public frontend origin used to build the shareable link / QR code.
+        'frontend_url' => env('FRONTEND_URL', env('APP_URL', 'http://localhost:3000')),
+
+        // Default lifetime of a generated link (days). Admins may override.
+        'link_ttl_days' => (int) env('INTERNSHIP_REGISTRATION_LINK_TTL_DAYS', 30),
+
+        // Spam protection for public submissions (per IP).
+        'max_submissions_per_ip' => (int) env('INTERNSHIP_REGISTRATION_MAX_SUBMISSIONS', 5),
+        'submission_window_minutes' => (int) env('INTERNSHIP_REGISTRATION_WINDOW_MINUTES', 10),
+    ],
+
 ];

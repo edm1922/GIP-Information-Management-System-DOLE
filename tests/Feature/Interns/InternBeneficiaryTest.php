@@ -13,6 +13,7 @@ function beneficiaryPayload(array $overrides = []): array
         'middle_name' => null,
         'last_name' => 'Dela Cruz',
         'suffix' => null,
+        'email' => 'juan.delacruz@example.test',
         'username' => 'juan.delacruz',
         'required_hours' => 486,
         'status' => 'active',

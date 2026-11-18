@@ -29,6 +29,7 @@ function initialValues(intern?: Intern | null): InternFormValues {
     last_name: intern?.user?.last_name ?? "",
     suffix: intern?.user?.suffix ?? "",
     username: intern?.user?.username ?? "",
+    email: intern?.user?.email ?? "",
     partner_agency_id: intern?.partner_agency_id ? String(intern.partner_agency_id) : "",
     intern_type: intern?.intern_type ?? "",
     batch: intern?.batch ?? "",
@@ -118,6 +119,25 @@ export function InternForm({ intern, agencies, submitting, errors, onSubmit, sub
             <div className="form-text">
               {intern ? "Default password on reset" : "Default password"}: <code>{defaultPassword}</code>
             </div>
+          )}
+        </div>
+        <div className="col-md-4">
+          <label className="form-label" htmlFor="email">
+            Email Address {intern ? null : <span className="text-danger">*</span>}
+          </label>
+          <input
+            id="email"
+            type="email"
+            className={inputClass("email")}
+            value={values.email}
+            onChange={set("email")}
+            required={!intern}
+            placeholder="intern@example.com"
+          />
+          {errorFor("email") ? (
+            <div className="invalid-feedback d-block">{errorFor("email")}</div>
+          ) : (
+            <div className="form-text">Used to send login credentials.</div>
           )}
         </div>
       </div>

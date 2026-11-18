@@ -6,10 +6,13 @@ use App\Http\Controllers\Api\V1\CompanyController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\DocumentTypeController;
 use App\Http\Controllers\Api\V1\InternController;
+use App\Http\Controllers\Api\V1\InternApplicationController;
 use App\Http\Controllers\Api\V1\InternDocumentController;
+use App\Http\Controllers\Api\V1\InternRegistrationLinkController;
 use App\Http\Controllers\Api\V1\MyInternshipController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\ProfileController;
+use App\Http\Controllers\Api\V1\PublicInternRegistrationController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
@@ -29,6 +32,17 @@ Route::prefix('v1')->name('api.v1.')->middleware('throttle:120,1')->group(functi
     Route::get('/health', function () {
         return response()->json(['status' => 'ok']);
     })->name('health');
+
+    // Public intern self-registration (no auth). Strict per-IP limits guard the
+    // unauthenticated endpoints; the token is validated in the controller.
+    Route::prefix('public')->name('public.')->group(function () {
+        Route::get('/registration/{token}', [PublicInternRegistrationController::class, 'show'])
+            ->middleware('throttle:public-registration-meta')
+            ->name('registration.show');
+        Route::post('/registration/{token}/applications', [PublicInternRegistrationController::class, 'store'])
+            ->middleware('throttle:public-registration')
+            ->name('registration.applications.store');
+    });
 
     Route::middleware('guest')->group(function () {
         Route::post('/auth/login', [AuthController::class, 'login'])
@@ -89,6 +103,35 @@ Route::prefix('v1')->name('api.v1.')->middleware('throttle:120,1')->group(functi
         Route::delete('/interns/{id}/force-delete', [InternController::class, 'forceDelete'])
             ->middleware('role:admin')
             ->name('interns.forceDelete');
+
+        // Intern self-registration: shared link + application review
+        Route::middleware('role:admin,peso_manager')->group(function () {
+            Route::get('/intern-registration-link', [InternRegistrationLinkController::class, 'index'])
+                ->middleware('can:viewAny,App\Models\InternRegistrationLink')
+                ->name('intern-registration-link.index');
+            Route::post('/intern-registration-link', [InternRegistrationLinkController::class, 'store'])
+                ->middleware('can:manage,App\Models\InternRegistrationLink')
+                ->name('intern-registration-link.store');
+            Route::delete('/intern-registration-link', [InternRegistrationLinkController::class, 'destroy'])
+                ->middleware('can:manage,App\Models\InternRegistrationLink')
+                ->name('intern-registration-link.destroy');
+
+            Route::get('/intern-applications', [InternApplicationController::class, 'index'])
+                ->middleware('can:viewAny,App\Models\InternApplication')
+                ->name('intern-applications.index');
+            Route::get('/intern-applications/{application}', [InternApplicationController::class, 'show'])
+                ->middleware('can:view,application')
+                ->name('intern-applications.show');
+            Route::post('/intern-applications/{application}/approve', [InternApplicationController::class, 'approve'])
+                ->middleware('can:approve,application')
+                ->name('intern-applications.approve');
+            Route::post('/intern-applications/{application}/reject', [InternApplicationController::class, 'reject'])
+                ->middleware('can:reject,application')
+                ->name('intern-applications.reject');
+            Route::post('/intern-applications/{application}/credential-email', [InternApplicationController::class, 'resendCredentials'])
+                ->middleware('can:resendCredentials,application')
+                ->name('intern-applications.credential-email');
+        });
 
         // Intern documents
         Route::get('/intern-documents', [InternDocumentController::class, 'index'])

@@ -47,7 +47,8 @@ class InternController extends Controller
             $query->whereHas('user', function ($userQuery) use ($search) {
                 $userQuery->where('first_name', 'like', "%{$search}%")
                     ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('username', 'like', "%{$search}%");
+                    ->orWhere('username', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -126,6 +127,7 @@ class InternController extends Controller
                 'middle_name' => $validated['middle_name'] ?? null,
                 'last_name' => $validated['last_name'],
                 'suffix' => $validated['suffix'] ?? null,
+                'email' => $validated['email'] ?? null,
                 'username' => $validated['username'],
             ]);
 
@@ -220,6 +222,7 @@ class InternController extends Controller
             'middle_name' => $validated['middle_name'] ?? null,
             'last_name' => $validated['last_name'],
             'suffix' => $validated['suffix'] ?? null,
+            'email' => $validated['email'] ?? null,
             'username' => $validated['username'],
             'password' => Hash::make($defaultPassword),
             'role' => 'intern',

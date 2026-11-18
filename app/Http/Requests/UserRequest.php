@@ -31,6 +31,7 @@ class UserRequest extends FormRequest
             'last_name' => ['required', 'string', 'max:255'],
             'suffix' => ['nullable', 'string', 'max:255'],
             'username' => ['required', 'string', 'max:255', Rule::unique('users')->ignore($userId)],
+            'email' => ['nullable', 'string', 'lowercase', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
             'role' => ['required', 'string', Rule::in(['admin', 'peso_manager'])],
             'is_active' => ['nullable', 'boolean'],
         ];

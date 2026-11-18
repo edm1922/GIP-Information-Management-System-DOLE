@@ -3,6 +3,7 @@ export type Role = "admin" | "peso_manager" | "intern";
 export interface User {
   id: number;
   username: string;
+  email: string | null;
   first_name: string | null;
   middle_name: string | null;
   last_name: string | null;
@@ -333,4 +334,71 @@ export interface MyInternshipResponse {
   document_types?: DocumentType[];
   taken_days?: string[];
   checklist?: ChecklistItem[];
+}
+
+export interface InternApplication {
+  id: number;
+  reference: string;
+  first_name: string;
+  middle_name: string | null;
+  last_name: string;
+  suffix: string | null;
+  name: string;
+  email: string;
+  contact_number: string | null;
+  school: string | null;
+  course: string | null;
+  partner_agency_id: number | null;
+  partner_agency?: Company | null;
+  intern_type: string | null;
+  preferred_start_date: string | null;
+  notes: string | null;
+  status: "pending" | "approved" | "rejected";
+  reviewer: string | null;
+  reviewed_at: string | null;
+  rejection_reason: string | null;
+  approved_user_id: number | null;
+  approved_intern_id: number | null;
+  approved_username: string | null;
+  credential_email_status: "pending" | "sent" | "failed" | null;
+  credential_email_sent_at: string | null;
+  credential_email_error: string | null;
+  credential_email_attempts: number;
+  suggested_username?: string;
+  created_at: string | null;
+}
+
+export interface InternApplicationsResponse {
+  applications: Paginated<InternApplication>;
+  pending_count: number;
+}
+
+export interface InternApplicationResponse {
+  application: InternApplication;
+  suggested_username?: string;
+}
+
+export interface RegistrationLink {
+  id: number;
+  url: string;
+  expires_at: string | null;
+  revoked_at: string | null;
+  uses_count: number;
+  is_active: boolean;
+  created_by: string | null;
+  created_at: string | null;
+}
+
+export interface RegistrationLinkResponse {
+  link: RegistrationLink | null;
+  history: RegistrationLink[];
+}
+
+export interface PublicRegistrationMeta {
+  registration: {
+    brand: { name: string; short_name: string };
+    expires_at: string | null;
+    intern_types: string[];
+    agencies: Array<{ id: number; name: string }>;
+  };
 }

@@ -32,6 +32,10 @@ class UpdateInternRequest extends FormRequest
             'middle_name' => ['nullable', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
             'suffix' => ['nullable', 'string', 'max:20'],
+            'email' => [
+                'nullable', 'string', 'lowercase', 'email', 'max:255',
+                Rule::unique('users', 'email')->ignore($userId),
+            ],
             'username' => [
                 'required', 'string', 'max:50',
                 Rule::unique('users', 'username')->ignore($userId),
@@ -66,6 +70,7 @@ class UpdateInternRequest extends FormRequest
     {
         return [
             'username.unique' => 'This username is already taken.',
+            'email.unique' => 'An account with this email address already exists.',
             'contract_end_date.after_or_equal' => 'The contract end date must be on or after the start date.',
         ];
     }

@@ -11,6 +11,7 @@ it('creates intern accounts using the configured default password suffix', funct
     $this->actingAs($admin)->post(route('interns.store'), [
         'first_name' => 'Maria',
         'last_name' => 'Santos',
+        'email' => 'msantos@example.test',
         'username' => 'msantos',
         'required_hours' => 486,
         'status' => 'active',

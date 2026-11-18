@@ -9,6 +9,7 @@ it('lets an admin create an intern together with a login account', function () {
     $response = $this->actingAs($admin)->post(route('interns.store'), [
         'first_name' => 'Juan',
         'last_name' => 'Dela Cruz',
+        'email' => 'juandc@example.test',
         'username' => 'juandc',
         'required_hours' => 486,
         'status' => 'active',

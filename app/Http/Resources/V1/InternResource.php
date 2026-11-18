@@ -28,6 +28,7 @@ class InternResource extends JsonResource
             'partner_agency_id' => $this->partner_agency_id,
             'partner_agency' => new CompanyResource($this->whenLoaded('partnerAgency')),
             'name' => $this->name,
+            'email' => $this->whenLoaded('user', fn () => $this->user?->email),
             'contract_start_date' => $this->contract_start_date?->format('Y-m-d'),
             'contract_end_date' => $this->contract_end_date?->format('Y-m-d'),
             'contract_months' => $this->contract_months,

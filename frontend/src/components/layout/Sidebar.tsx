@@ -79,7 +79,13 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
             ) : staff ? (
               <>
                 <Section>INTERNSHIP PROGRAM</Section>
-                <NavLink href="/interns" active={pathname.startsWith("/interns")} icon="fa-user-graduate" label="Interns" />
+                <NavLink href="/interns" active={pathname.startsWith("/interns") && !pathname.startsWith("/interns/applications")} icon="fa-user-graduate" label="Interns" />
+                <NavLink
+                  href="/interns/applications"
+                  active={pathname.startsWith("/interns/applications")}
+                  icon="fa-clipboard-check"
+                  label="Applications"
+                />
                 <NavLink
                   href="/intern-documents"
                   active={pathname.startsWith("/intern-documents")}
