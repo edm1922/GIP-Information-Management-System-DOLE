@@ -18,6 +18,7 @@ export default function InternDetailPage() {
   const [intern, setIntern] = useState<Intern | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmingArchive, setConfirmingArchive] = useState(false);
+  const [confirmingForceDelete, setConfirmingForceDelete] = useState(false);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -44,6 +45,19 @@ export default function InternDetailPage() {
     } catch (requestError) {
       setActionError(requestError instanceof ApiError ? requestError.message : "The intern could not be archived.");
       setBusy(false);
+    }
+  };
+
+  const forceDelete = async () => {
+    setBusy(true);
+    setActionError(null);
+    try {
+      await api.delete(`/api/v1/interns/${params.id}/force-delete`);
+      router.push("/interns");
+    } catch (requestError) {
+      setActionError(requestError instanceof ApiError ? requestError.message : "The intern could not be permanently deleted.");
+      setBusy(false);
+      setConfirmingForceDelete(false);
     }
   };
 
@@ -90,6 +104,9 @@ export default function InternDetailPage() {
               </a>
               <button type="button" className="btn btn-outline-danger" onClick={() => setConfirmingArchive(true)}>
                 <i className="fas fa-box-archive" /> Archive
+              </button>
+              <button type="button" className="btn btn-outline-danger" onClick={() => setConfirmingForceDelete(true)}>
+                <i className="fas fa-trash-can" /> Delete
               </button>
             </>
           )}
@@ -192,6 +209,27 @@ export default function InternDetailPage() {
       >
         Archive {intern.name}? They will be hidden from the active list and their login will be disabled. You can restore
         them from the Archived view on the interns list.
+      </Modal>
+
+      <Modal
+        show={confirmingForceDelete}
+        onClose={() => setConfirmingForceDelete(false)}
+        title="Permanently delete intern"
+        footer={
+          <>
+            <button type="button" className="btn btn-outline-secondary" onClick={() => setConfirmingForceDelete(false)}>
+              Cancel
+            </button>
+            <button type="button" className="btn btn-danger" disabled={busy} onClick={forceDelete}>
+              {busy ? <i className="fas fa-circle-notch fa-spin me-1" /> : null}
+              Delete permanently
+            </button>
+          </>
+        }
+      >
+        Permanently delete <strong>{intern.name}</strong>? This hard-deletes the intern record, archives their uploaded
+        documents and disables their login account. This cannot be undone; use Archive instead if you only want to
+        hide them.
       </Modal>
     </>
   );

@@ -134,3 +134,20 @@ it('does not expose archived interns to non-admin archive filters', function () 
         ->assertOk()
         ->assertJsonPath('show_archived', false);
 });
+
+it('permanently deletes an intern through the API for admins only', function () {
+    $admin = User::factory()->admin()->create();
+    $internUser = User::factory()->intern()->create();
+    $intern = apiCreateIntern($internUser);
+
+    $this->actingAs(User::factory()->pesoManager()->create())
+        ->deleteJson("/api/v1/interns/{$intern->id}/force-delete")
+        ->assertForbidden();
+
+    $this->actingAs($admin)
+        ->deleteJson("/api/v1/interns/{$intern->id}/force-delete")
+        ->assertOk();
+
+    $this->assertDatabaseMissing('interns', ['id' => $intern->id]);
+    expect($internUser->fresh()->trashed())->toBeTrue();
+});

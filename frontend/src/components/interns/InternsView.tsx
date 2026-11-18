@@ -29,7 +29,7 @@ function messageFor(action: ConfirmAction): { title: string; message: string; su
   if (action.kind === "force-delete") {
     return {
       title: "Permanently delete intern",
-      message: `Permanently delete ${action.intern.name}? Their login account and intern record will be removed. This cannot be undone.`,
+      message: `Permanently delete ${action.intern.name}? This hard-deletes the intern record, archives their uploaded documents and disables their login account. This cannot be undone.`,
       submit: "Delete permanently",
     };
   }
@@ -356,11 +356,19 @@ export function InternsView() {
                             </a>{" "}
                             <button
                               type="button"
-                              className="btn btn-sm btn-outline-danger"
+                              className="btn btn-sm btn-outline-secondary"
                               title="Archive intern"
                               onClick={() => setConfirming({ kind: "archive", intern })}
                             >
                               <i className="fas fa-box-archive" />
+                            </button>{" "}
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-danger"
+                              title="Delete permanently"
+                              onClick={() => setConfirming({ kind: "force-delete", intern })}
+                            >
+                              <i className="fas fa-trash-can" />
                             </button>
                           </>
                         )
