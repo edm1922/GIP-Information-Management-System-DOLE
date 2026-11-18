@@ -91,7 +91,7 @@ class InternRegistrationService
                 ]);
             }
 
-            if (User::query()->where('email', $email)->exists()) {
+            if (User::withTrashed()->where('email', $email)->exists()) {
                 throw ValidationException::withMessages([
                     'email' => 'An account with this email address already exists.',
                 ]);

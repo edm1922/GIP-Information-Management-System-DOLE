@@ -6,6 +6,7 @@ use App\Mail\InternCredentialsMail;
 use App\Models\Intern;
 use App\Models\InternApplication;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -41,13 +42,13 @@ class InternApplicationApprovalService
 
             $username = $this->suggestUsername($locked);
 
-            if (User::query()->where('username', $username)->exists()) {
+            if (User::withTrashed()->where('username', $username)->exists()) {
                 throw ValidationException::withMessages([
                     'username' => 'This username is already taken.',
                 ]);
             }
 
-            if (User::query()->where('email', $locked->email)->exists()) {
+            if (User::withTrashed()->where('email', $locked->email)->exists()) {
                 throw ValidationException::withMessages([
                     'email' => 'An account with this email address already exists.',
                 ]);
@@ -55,18 +56,26 @@ class InternApplicationApprovalService
 
             $plainPassword = $this->temporaryPassword();
 
-            $user = User::create([
-                'first_name' => $locked->first_name,
-                'middle_name' => $locked->middle_name,
-                'last_name' => $locked->last_name,
-                'suffix' => $locked->suffix,
-                'username' => $username,
-                'email' => $locked->email,
-                'password' => Hash::make($plainPassword),
-                'role' => 'intern',
-                'is_active' => true,
-                'must_change_password' => true,
-            ]);
+            $user = null;
+            try {
+                $user = User::create([
+                    'first_name' => $locked->first_name,
+                    'middle_name' => $locked->middle_name,
+                    'last_name' => $locked->last_name,
+                    'suffix' => $locked->suffix,
+                    'username' => $username,
+                    'email' => $locked->email,
+                    'password' => Hash::make($plainPassword),
+                    'role' => 'intern',
+                    'is_active' => true,
+                    'must_change_password' => true,
+                ]);
+            } catch (QueryException $exception) {
+                // Unique index backstop for a race between two reviewers.
+                throw ValidationException::withMessages([
+                    'email' => 'An account with this username or email address was just created. Refresh the application list.',
+                ]);
+            }
 
             $intern = Intern::create([
                 'user_id' => $user->id,
@@ -191,7 +200,7 @@ class InternApplicationApprovalService
         $candidate = $base;
         $suffix = 1;
 
-        while (User::query()->where('username', $candidate)->exists()) {
+        while (User::withTrashed()->where('username', $candidate)->exists()) {
             $suffix++;
             $candidate = $base.$suffix;
         }

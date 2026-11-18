@@ -203,7 +203,8 @@ export function ApplicationsView() {
             {pendingCount > 0 && <span className="badge bg-warning text-dark align-middle">{pendingCount} pending</span>}
           </h2>
           <p className="text-muted mb-0" style={{ fontSize: "0.85rem" }}>
-            Applications submitted through the shareable self-registration link.
+            Applications submitted through the shareable self-registration link. Submitting an application does not
+            send any email — credentials are emailed when you approve.
           </p>
         </div>
         <Link className="btn btn-outline-secondary" href="/interns">

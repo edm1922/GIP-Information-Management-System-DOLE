@@ -334,3 +334,17 @@ it('suffixes the standardized username when it is already taken', function () {
     expect(User::where('username', 'delacruz_ma2')->exists())->toBeTrue()
         ->and($application->fresh()->approvedUser?->username)->toBe('delacruz_ma2');
 });
+
+it('blocks resubmission when a soft-deleted account still owns the email', function () {
+    $admin = User::factory()->admin()->create();
+    $link = registrationLinkFor($admin);
+
+    User::factory()->intern()->create([
+        'username' => 'deleted.account',
+        'email' => 'deleted.account@example.test',
+    ])->delete();
+
+    $this->postJson("/api/v1/public/registration/{$link->token}/applications", applicationPayload([
+        'email' => 'deleted.account@example.test',
+    ]))->assertStatus(422)->assertJsonValidationErrors('email');
+});

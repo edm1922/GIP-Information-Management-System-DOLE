@@ -137,6 +137,11 @@ export default function PublicRegisterPage() {
           <div className="register-reference">
             Reference: <strong>{reference}</strong>
           </div>
+          <div className="alert alert-warning small text-start mt-3 mb-0">
+            <i className="fas fa-clock me-1" />
+            <strong>No email has been sent yet.</strong> Your username and temporary password will be emailed only
+            after the PESO office approves your application.
+          </div>
           <p className="text-muted small mb-0 mt-3">
             Keep this reference for follow-ups. You do not need an account to check the status; the PESO office will
             contact you at your email address.
