@@ -11,7 +11,7 @@ class InternApplication extends Model
 {
     use HasFactory;
 
-    public const STATUSES = ['pending', 'approved', 'rejected'];
+    public const STATUSES = ['pending', 'pending_admin', 'approved', 'rejected'];
 
     public const EMAIL_STATUSES = ['pending', 'sent', 'failed'];
 
@@ -33,6 +33,10 @@ class InternApplication extends Model
         'status',
         'reviewer_id',
         'reviewed_at',
+        'peso_reviewer_id',
+        'peso_reviewed_at',
+        'admin_reviewer_id',
+        'admin_reviewed_at',
         'rejection_reason',
         'approved_user_id',
         'approved_intern_id',
@@ -47,6 +51,8 @@ class InternApplication extends Model
         return [
             'preferred_start_date' => 'date',
             'reviewed_at' => 'datetime',
+            'peso_reviewed_at' => 'datetime',
+            'admin_reviewed_at' => 'datetime',
             'credential_email_sent_at' => 'datetime',
             'credential_email_attempts' => 'integer',
         ];
@@ -60,6 +66,16 @@ class InternApplication extends Model
     public function reviewer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'reviewer_id');
+    }
+
+    public function pesoReviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'peso_reviewer_id');
+    }
+
+    public function adminReviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'admin_reviewer_id');
     }
 
     public function approvedUser(): BelongsTo

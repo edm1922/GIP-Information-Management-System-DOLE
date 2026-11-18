@@ -386,9 +386,13 @@ export interface InternApplication {
   intern_type: string | null;
   preferred_start_date: string | null;
   notes: string | null;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "pending_admin" | "approved" | "rejected";
   reviewer: string | null;
   reviewed_at: string | null;
+  peso_reviewer?: string | null;
+  peso_reviewed_at?: string | null;
+  admin_reviewer?: string | null;
+  admin_reviewed_at?: string | null;
   rejection_reason: string | null;
   approved_user_id: number | null;
   approved_intern_id: number | null;

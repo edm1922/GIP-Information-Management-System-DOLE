@@ -6,6 +6,8 @@ use App\Mail\InternCredentialsMail;
 use App\Models\Intern;
 use App\Models\InternApplication;
 use App\Models\User;
+use App\Notifications\InternApplicationApproved;
+use App\Notifications\InternApplicationPesoApproved;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -14,29 +16,65 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Turns a pending application into a real intern + login account.
+ * Two-stage intern application approval:
  *
- * The temporary password only ever lives in memory and in the credential
- * email; only the hash is persisted. A failed email keeps the approved
- * account and is retried with a freshly rotated password.
+ *   pending --PESO approve--> pending_admin --Admin approve--> approved
+ *                                            \--Admin reject--> rejected
+ *   pending --PESO reject--> rejected
+ *
+ * Credentials and the intern account are only created at the Admin's final
+ * approval; the PESO stage merely forwards the application.
  */
 class InternApplicationApprovalService
 {
+    /** PESO first-stage approval: forward to the Admin, no account yet. */
+    public function pesoApprove(InternApplication $application, User $reviewer): InternApplication
+    {
+        $application = DB::transaction(function () use ($application, $reviewer) {
+            $locked = InternApplication::query()->whereKey($application->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->status !== 'pending') {
+                throw ValidationException::withMessages([
+                    'status' => 'This application has already been reviewed.',
+                ]);
+            }
+
+            $locked->forceFill([
+                'status' => 'pending_admin',
+                'reviewer_id' => $reviewer->id,
+                'reviewed_at' => now(),
+                'peso_reviewer_id' => $reviewer->id,
+                'peso_reviewed_at' => now(),
+                'rejection_reason' => null,
+            ])->save();
+
+            AuditService::log('approved', "PESO approved intern application {$locked->reference}; awaiting Admin approval.", $locked);
+
+            return $locked;
+        });
+
+        $this->notifyAdmins($application);
+
+        return $application->fresh();
+    }
+
     /**
-     * @param  array<string, mixed>  $data  placement/account fields from the reviewer
+     * Admin final approval: create the intern account and email credentials.
+     *
+     * @param  array<string, mixed>  $data
      *
      * @throws ValidationException
      */
-    public function approve(InternApplication $application, User $reviewer, array $data): InternApplication
+    public function adminApprove(InternApplication $application, User $reviewer, array $data): InternApplication
     {
         $plainPassword = null;
 
         $application = DB::transaction(function () use ($application, $reviewer, $data, &$plainPassword) {
             $locked = InternApplication::query()->whereKey($application->id)->lockForUpdate()->firstOrFail();
 
-            if ($locked->status !== 'pending') {
+            if ($locked->status !== 'pending_admin') {
                 throw ValidationException::withMessages([
-                    'status' => 'This application has already been reviewed.',
+                    'status' => 'This application is not awaiting final Admin approval.',
                 ]);
             }
 
@@ -56,7 +94,6 @@ class InternApplicationApprovalService
 
             $plainPassword = $this->temporaryPassword();
 
-            $user = null;
             try {
                 $user = User::create([
                     'first_name' => $locked->first_name,
@@ -71,7 +108,6 @@ class InternApplicationApprovalService
                     'must_change_password' => true,
                 ]);
             } catch (QueryException $exception) {
-                // Unique index backstop for a race between two reviewers.
                 throw ValidationException::withMessages([
                     'email' => 'An account with this username or email address was just created. Refresh the application list.',
                 ]);
@@ -98,44 +134,74 @@ class InternApplicationApprovalService
                 'status' => 'approved',
                 'reviewer_id' => $reviewer->id,
                 'reviewed_at' => now(),
+                'admin_reviewer_id' => $reviewer->id,
+                'admin_reviewed_at' => now(),
                 'approved_user_id' => $user->id,
                 'approved_intern_id' => $intern->id,
                 'credential_email_status' => 'pending',
                 'credential_email_error' => null,
             ])->save();
 
-            AuditService::log('created', "Approved intern application {$locked->reference}", $locked);
+            AuditService::log('created', "Admin approved intern application {$locked->reference} and created the account.", $locked);
 
             return $locked;
         });
 
         $this->sendCredentials($application, $plainPassword, $reviewer);
+        $this->notifyPesoManagers($application->fresh());
 
         return $application->fresh();
     }
 
-    /** @throws ValidationException */
+    /**
+     * Legacy entry point retained for compatibility: performs the Admin final
+     * approval step.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function approve(InternApplication $application, User $reviewer, array $data): InternApplication
+    {
+        return $this->adminApprove($application, $reviewer, $data);
+    }
+
+    /**
+     * PESO may reject a pending application; Admin may reject one awaiting
+     * final approval.
+     *
+     * @throws ValidationException
+     */
     public function reject(InternApplication $application, User $reviewer, string $reason): InternApplication
     {
         $application = DB::transaction(function () use ($application, $reviewer, $reason) {
             $locked = InternApplication::query()->whereKey($application->id)->lockForUpdate()->firstOrFail();
 
-            if ($locked->status !== 'pending') {
+            $expected = $reviewer->isAdmin() ? 'pending_admin' : 'pending';
+            if ($locked->status !== $expected) {
                 throw ValidationException::withMessages([
                     'status' => 'This application has already been reviewed.',
                 ]);
             }
 
-            $locked->forceFill([
+            $fields = [
                 'status' => 'rejected',
                 'reviewer_id' => $reviewer->id,
                 'reviewed_at' => now(),
                 'rejection_reason' => $reason,
-            ])->save();
+            ];
+
+            if ($reviewer->isAdmin()) {
+                $fields['admin_reviewer_id'] = $reviewer->id;
+                $fields['admin_reviewed_at'] = now();
+            } else {
+                $fields['peso_reviewer_id'] = $reviewer->id;
+                $fields['peso_reviewed_at'] = now();
+            }
+
+            $locked->forceFill($fields)->save();
 
             AuditService::log('rejected', "Rejected intern application {$locked->reference}", $locked);
 
-            return $locked;
+            return $locked->fresh();
         });
 
         return $application;
@@ -143,10 +209,7 @@ class InternApplicationApprovalService
 
     /**
      * Rotate the temporary password and re-send the credential email for an
-     * already-approved application (used when Gmail delivery failed or the
-     * applicant lost the message).
-     *
-     * @throws ValidationException
+     * already-approved application.
      */
     public function resendCredentials(InternApplication $application): InternApplication
     {
@@ -188,7 +251,6 @@ class InternApplicationApprovalService
     /**
      * Standard intern username: LASTNAME + "_" + first two letters of the
      * given name, lower-cased and stripped of punctuation (e.g. "delacruz_ma").
-     * A numeric suffix is appended on collisions.
      */
     public function suggestUsername(InternApplication $application): string
     {
@@ -210,8 +272,25 @@ class InternApplicationApprovalService
 
     private function temporaryPassword(): string
     {
-        // Letters + digits only: easy to type on a phone, ~82 bits of entropy.
         return Str::password(14, letters: true, numbers: true, symbols: false, spaces: false);
+    }
+
+    private function notifyAdmins(InternApplication $application): void
+    {
+        User::query()
+            ->where('role', 'admin')
+            ->where('is_active', true)
+            ->get()
+            ->each(fn (User $admin) => $admin->notify(new InternApplicationPesoApproved($application)));
+    }
+
+    private function notifyPesoManagers(InternApplication $application): void
+    {
+        User::query()
+            ->where('role', 'peso_manager')
+            ->where('is_active', true)
+            ->get()
+            ->each(fn (User $manager) => $manager->notify(new InternApplicationApproved($application)));
     }
 
     private function sendCredentials(InternApplication $application, string $plainPassword, ?User $reviewer = null): void
@@ -235,8 +314,6 @@ class InternApplicationApprovalService
 
             AuditService::log('notified', "Sent credential email for {$application->reference}", $application);
         } catch (\Throwable $exception) {
-            // Keep the approved account; the reviewer can retry (which rotates
-            // the temporary password). Never log the password itself.
             $application->forceFill([
                 'credential_email_status' => 'failed',
                 'credential_email_error' => Str::limit($exception->getMessage(), 1000),

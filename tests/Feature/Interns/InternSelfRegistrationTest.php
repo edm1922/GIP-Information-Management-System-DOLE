@@ -148,7 +148,19 @@ it('approves an application, creates the account and emails the credentials', fu
     ]))->assertCreated();
 
     $application = InternApplication::firstOrFail();
+    $peso = User::factory()->pesoManager()->create();
 
+    // PESO first stage: no account, no credentials.
+    $this->actingAs($peso)
+        ->postJson("/api/v1/intern-applications/{$application->id}/approve")
+        ->assertOk()
+        ->assertJsonPath('application.status', 'pending_admin');
+
+    expect(User::where('email', 'approved.applicant@example.test')->exists())->toBeFalse()
+        ->and(Intern::count())->toBe(0);
+    Mail::assertNothingSent();
+
+    // Admin final approval creates the account and sends credentials.
     $this->actingAs($admin)
         ->postJson("/api/v1/intern-applications/{$application->id}/approve", [
             'supervisor' => 'JUAN DELA CRUZ',
@@ -211,7 +223,18 @@ it('allows peso managers to approve and blocks interns or guests', function () {
 
     $this->actingAs($peso)
         ->postJson("/api/v1/intern-applications/{$application->id}/approve")
-        ->assertOk();
+        ->assertOk()
+        ->assertJsonPath('application.status', 'pending_admin');
+
+    expect(Intern::count())->toBe(0)
+        ->and(User::where('email', 'peso.approved@example.test')->exists())->toBeFalse();
+    Mail::assertNothingSent();
+
+    // Only the Admin can give final approval.
+    $this->actingAs(User::factory()->admin()->create())
+        ->postJson("/api/v1/intern-applications/{$application->id}/approve")
+        ->assertOk()
+        ->assertJsonPath('application.status', 'approved');
 });
 
 it('cannot approve the same application twice', function () {
@@ -223,6 +246,12 @@ it('cannot approve the same application twice', function () {
     $this->postJson("/api/v1/public/registration/{$link->token}/applications", applicationPayload())->assertCreated();
     $application = InternApplication::firstOrFail();
 
+    $peso = User::factory()->pesoManager()->create();
+
+    $this->actingAs($peso)
+        ->postJson("/api/v1/intern-applications/{$application->id}/approve")
+        ->assertOk();
+
     $this->actingAs($admin)
         ->postJson("/api/v1/intern-applications/{$application->id}/approve")
         ->assertOk();
@@ -232,8 +261,7 @@ it('cannot approve the same application twice', function () {
 
     $this->actingAs($admin)
         ->postJson("/api/v1/intern-applications/{$application->id}/approve")
-        ->assertStatus(422)
-        ->assertJsonValidationErrors('status');
+        ->assertForbidden();
 
     expect(User::count())->toBe($userCount)
         ->and(Intern::count())->toBe($internCount);
@@ -246,20 +274,22 @@ it('rejects an application with a reason and creates no account', function () {
     $this->postJson("/api/v1/public/registration/{$link->token}/applications", applicationPayload())->assertCreated();
     $application = InternApplication::firstOrFail();
 
-    $this->actingAs($admin)
+    $peso = User::factory()->pesoManager()->create();
+
+    $this->actingAs($peso)
         ->postJson("/api/v1/intern-applications/{$application->id}/reject", ['reason' => 'Incomplete requirements.'])
         ->assertOk()
         ->assertJsonPath('application.status', 'rejected');
 
     expect($application->fresh()->rejection_reason)->toBe('Incomplete requirements.')
-        ->and($application->fresh()->reviewer_id)->toBe($admin->id);
+        ->and($application->fresh()->peso_reviewer_id)->toBe($peso->id);
     $this->assertDatabaseCount('interns', 0);
-    $this->assertDatabaseCount('users', 1);
+    $this->assertDatabaseCount('users', 2);
 
     // Repeated review is blocked.
-    $this->actingAs($admin)
+    $this->actingAs($peso)
         ->postJson("/api/v1/intern-applications/{$application->id}/reject", ['reason' => 'Again rejected now.'])
-        ->assertStatus(422);
+        ->assertForbidden();
 });
 
 it('lists applications for staff and resends credentials with a rotated password', function () {
@@ -279,6 +309,11 @@ it('lists applications for staff and resends credentials with a rotated password
         ->assertOk()
         ->assertJsonPath('pending_count', 1)
         ->assertJsonStructure(['applications' => ['data'], 'pending_count']);
+
+    $this->actingAs($peso)
+        ->postJson("/api/v1/intern-applications/{$application->id}/approve")
+        ->assertOk()
+        ->assertJsonPath('application.status', 'pending_admin');
 
     $this->actingAs($admin)
         ->postJson("/api/v1/intern-applications/{$application->id}/approve")
@@ -327,6 +362,11 @@ it('suffixes the standardized username when it is already taken', function () {
         ->assertCreated();
 
     $application = InternApplication::firstOrFail();
+    $peso = User::factory()->pesoManager()->create();
+
+    $this->actingAs($peso)
+        ->postJson("/api/v1/intern-applications/{$application->id}/approve")
+        ->assertOk();
 
     $this->actingAs($admin)
         ->postJson("/api/v1/intern-applications/{$application->id}/approve")
@@ -401,17 +441,29 @@ it('hides pending applications from admins but shows them to PESO managers', fun
         ->assertJsonPath('pending_count', 1)
         ->assertJsonPath('applications.data.0.status', 'pending');
 
-    // Once PESO approves, the admin sees the application.
+    // Once PESO endorses it, the admin sees it awaiting final approval.
     Mail::fake();
     $this->actingAs($peso)
         ->postJson("/api/v1/intern-applications/{$application->id}/approve")
-        ->assertOk();
+        ->assertOk()
+        ->assertJsonPath('application.status', 'pending_admin');
 
     $this->actingAs($admin)
         ->getJson('/api/v1/intern-applications')
         ->assertOk()
         ->assertJsonCount(1, 'applications.data')
-        ->assertJsonPath('applications.data.0.status', 'approved');
+        ->assertJsonPath('applications.data.0.status', 'pending_admin')
+        ->assertJsonPath('pending_count', 1);
+
+    $this->actingAs($admin)
+        ->getJson("/api/v1/intern-applications/{$application->id}")
+        ->assertOk()
+        ->assertJsonPath('application.status', 'pending_admin');
+
+    $this->actingAs($admin)
+        ->postJson("/api/v1/intern-applications/{$application->id}/approve")
+        ->assertOk()
+        ->assertJsonPath('application.status', 'approved');
 });
 
 it('notifies a newly created PESO manager about existing pending applications', function () {
@@ -432,4 +484,64 @@ it('notifies a newly created PESO manager about existing pending applications', 
 
     $peso = User::where('username', 'new.peso.manager')->firstOrFail();
     expect($peso->unreadNotifications()->count())->toBe(1);
+});
+
+it('keeps credentials unsent until the admin gives final approval', function () {
+    Mail::fake();
+
+    $admin = User::factory()->admin()->create();
+    $peso = User::factory()->pesoManager()->create();
+    $link = registrationLinkFor($admin);
+
+    $this->postJson("/api/v1/public/registration/{$link->token}/applications", applicationPayload([
+        'email' => 'two.stage@example.test',
+    ]))->assertCreated();
+
+    $application = InternApplication::firstOrFail();
+
+    $this->actingAs($admin)
+        ->postJson("/api/v1/intern-applications/{$application->id}/approve")
+        ->assertForbidden();
+
+    $this->actingAs($peso)
+        ->postJson("/api/v1/intern-applications/{$application->id}/approve")
+        ->assertOk()
+        ->assertJsonPath('application.status', 'pending_admin')
+        ->assertJsonPath('application.credential_email_status', null);
+
+    expect($application->fresh()->approved_user_id)->toBeNull()
+        ->and(User::where('email', 'two.stage@example.test')->exists())->toBeFalse();
+    Mail::assertNothingSent();
+
+    // Admin cannot skip ahead either.
+    $this->actingAs($peso)
+        ->postJson("/api/v1/intern-applications/{$application->id}/approve")
+        ->assertForbidden();
+
+    $this->actingAs($admin)
+        ->postJson("/api/v1/intern-applications/{$application->id}/approve")
+        ->assertOk()
+        ->assertJsonPath('application.status', 'approved')
+        ->assertJsonPath('application.credential_email_status', 'sent');
+
+    Mail::assertSent(InternCredentialsMail::class, fn (InternCredentialsMail $mail) => $mail->hasTo('two.stage@example.test'));
+});
+
+it('notifies admins when PESO endorses an application', function () {
+    $admin = User::factory()->admin()->create();
+    $peso = User::factory()->pesoManager()->create();
+    $link = registrationLinkFor($admin);
+
+    $this->postJson("/api/v1/public/registration/{$link->token}/applications", applicationPayload())
+        ->assertCreated();
+
+    $application = InternApplication::firstOrFail();
+    $admin->notifications()->delete();
+
+    $this->actingAs($peso)
+        ->postJson("/api/v1/intern-applications/{$application->id}/approve")
+        ->assertOk();
+
+    expect($admin->fresh()->unreadNotifications()->count())->toBe(1);
+    expect($admin->fresh()->unreadNotifications()->first()->data['kind'])->toBe('intern_application_pending_admin');
 });

@@ -19,21 +19,27 @@ class InternApplicationPolicy
     public function view(User $user, InternApplication $application): bool
     {
         if ($user->isAdmin()) {
-            // Admins only see an application after the PESO decision.
+            // Admins only see an application after the PESO endorsement.
             return $application->status !== 'pending';
         }
 
         return $user->isPesoManager();
     }
 
-    public function approve(User $user, InternApplication $application): bool
+    public function approveAsPeso(User $user, InternApplication $application): bool
     {
-        return $user->hasRole('admin', 'peso_manager');
+        return $user->isPesoManager() && $application->status === 'pending';
+    }
+
+    public function approveAsAdmin(User $user, InternApplication $application): bool
+    {
+        return $user->isAdmin() && $application->status === 'pending_admin';
     }
 
     public function reject(User $user, InternApplication $application): bool
     {
-        return $user->hasRole('admin', 'peso_manager');
+        return ($user->isPesoManager() && $application->status === 'pending')
+            || ($user->isAdmin() && $application->status === 'pending_admin');
     }
 
     public function resendCredentials(User $user, InternApplication $application): bool

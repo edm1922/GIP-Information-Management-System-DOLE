@@ -30,14 +30,24 @@ interface ApproveValues {
   beneficiary: string;
 }
 
+function statusLabel(status: InternApplication["status"]): string {
+  if (status === "pending") return "Pending PESO Review";
+  if (status === "pending_admin") return "Awaiting Admin Approval";
+  if (status === "approved") return "Approved";
+  if (status === "rejected") return "Rejected";
+  return status;
+}
+
 function statusBadge(status: InternApplication["status"]): string {
   if (status === "approved") return "bg-success";
+  if (status === "pending_admin") return "bg-info text-dark";
   if (status === "rejected") return "bg-danger";
   return "bg-warning text-dark";
 }
 
 export function ApplicationsView() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
+  const isPesoManager = user?.role === "peso_manager";
   const [data, setData] = useState<InternApplicationsResponse | null>(null);
   const [agencies, setAgencies] = useState<InternsIndexResponse["agencies"]>([]);
   const [loading, setLoading] = useState(true);
@@ -214,6 +224,10 @@ export function ApplicationsView() {
   };
 
   const pendingCount = data?.pending_count ?? 0;
+  const canReviewSelected =
+    Boolean(selected) &&
+    ((selected?.status === "pending" && isPesoManager) ||
+      (selected?.status === "pending_admin" && isAdmin));
 
   return (
     <>
@@ -221,7 +235,11 @@ export function ApplicationsView() {
         <div>
           <h2 className="h4 mb-1 fw-bold">
             Intern Applications{" "}
-            {pendingCount > 0 && <span className="badge bg-warning text-dark align-middle">{pendingCount} pending</span>}
+            {pendingCount > 0 && (
+              <span className="badge bg-warning text-dark align-middle">
+                {pendingCount} {isAdmin ? "awaiting final approval" : "pending"}
+              </span>
+            )}
           </h2>
           <p className="text-muted mb-0" style={{ fontSize: "0.85rem" }}>
             {isAdmin
@@ -283,7 +301,8 @@ export function ApplicationsView() {
                 }}
               >
                 <option value="">All</option>
-                {!isAdmin && <option value="pending">Pending</option>}
+                {!isAdmin && <option value="pending">Pending PESO Review</option>}
+                <option value="pending_admin">Awaiting Admin Approval</option>
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
               </select>
@@ -353,7 +372,7 @@ export function ApplicationsView() {
                     </td>
                     <td className="small">{formatDate(application.created_at)}</td>
                     <td>
-                      <span className={`badge ${statusBadge(application.status)}`}>{ucfirst(application.status)}</span>
+                      <span className={`badge ${statusBadge(application.status)}`}>{statusLabel(application.status)}</span>
                     </td>
                     <td className="small">{application.reviewer ?? "—"}</td>
                     <td className="text-end">
@@ -400,12 +419,17 @@ export function ApplicationsView() {
                 <div className="text-muted small text-uppercase fw-bold">Application</div>
                 <div className="small">
                   Submitted {formatDate(selected.created_at)} ·{" "}
-                  <span className={`badge ${statusBadge(selected.status)}`}>{ucfirst(selected.status)}</span>
+                  <span className={`badge ${statusBadge(selected.status)}`}>{statusLabel(selected.status)}</span>
                 </div>
                 <div className="small">Reference: {selected.reference}</div>
-                {selected.reviewer && (
+                {selected.peso_reviewer && (
                   <div className="small text-muted">
-                    Reviewed by {selected.reviewer} on {formatDate(selected.reviewed_at)}
+                    PESO: {selected.peso_reviewer} on {formatDate(selected.peso_reviewed_at)}
+                  </div>
+                )}
+                {selected.admin_reviewer && (
+                  <div className="small text-muted">
+                    Admin: {selected.admin_reviewer} on {formatDate(selected.admin_reviewed_at)}
                   </div>
                 )}
               </div>
@@ -454,10 +478,17 @@ export function ApplicationsView() {
               </div>
             )}
 
-            {selected.status === "pending" && mode === null && (
+            {selected.status === "pending_admin" && isPesoManager && (
+              <div className="alert alert-info small mb-0">
+                Endorsed to the Admin for final approval. Credentials are emailed only after the Admin approves.
+              </div>
+            )}
+
+            {canReviewSelected && mode === null && (
               <div className="d-flex flex-wrap gap-2">
                 <button className="btn btn-success" onClick={() => setMode("approve")}>
-                  <i className="fas fa-check me-1" /> Approve application
+                  <i className="fas fa-check me-1" />
+                  {isAdmin ? "Final approve application" : "Approve & forward to Admin"}
                 </button>
                 <button className="btn btn-outline-danger" onClick={() => setMode("reject")}>
                   <i className="fas fa-xmark me-1" /> Reject application
@@ -465,17 +496,19 @@ export function ApplicationsView() {
               </div>
             )}
 
-            {selected.status === "pending" && mode === "approve" && approve && (
+            {canReviewSelected && mode === "approve" && approve && (
               <form
                 onSubmit={(event) => {
                   event.preventDefault();
                   submitApprove();
                 }}
               >
-                <h6 className="text-uppercase text-muted fw-bold mb-3" style={{ fontSize: "0.75rem" }}>
-                  Create account &amp; intern record
-                </h6>
-                <div className="row g-2">
+                {isAdmin ? (
+                  <>
+                    <h6 className="text-uppercase text-muted fw-bold mb-3" style={{ fontSize: "0.75rem" }}>
+                      Final approval — create account &amp; intern record
+                    </h6>
+                    <div className="row g-2">
                   <div className="col-sm-6">
                     <label className="form-label">Username (auto-generated)</label>
                     <input className="form-control" value={suggestedUsername} readOnly />
@@ -579,11 +612,18 @@ export function ApplicationsView() {
                       onChange={(event) => setApprove({ ...approve, beneficiary: event.target.value })}
                     />
                   </div>
-                </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="alert alert-info small">
+                    First-stage PESO approval only. The application is forwarded to the Admin for final approval — no
+                    intern account is created and no credentials are emailed at this stage.
+                  </div>
+                )}
                 <div className="d-flex flex-wrap gap-2 mt-3">
                   <button className="btn btn-success" type="submit" disabled={busy}>
                     {busy ? <i className="fas fa-circle-notch fa-spin me-1" /> : <i className="fas fa-check me-1" />}
-                    Approve &amp; email credentials
+                    {isAdmin ? "Final approve & email credentials" : "Approve & forward to Admin"}
                   </button>
                   <button type="button" className="btn btn-outline-secondary" onClick={() => setMode(null)} disabled={busy}>
                     Cancel
@@ -592,7 +632,7 @@ export function ApplicationsView() {
               </form>
             )}
 
-            {selected.status === "pending" && mode === "reject" && (
+            {canReviewSelected && mode === "reject" && (
               <form
                 onSubmit={(event) => {
                   event.preventDefault();

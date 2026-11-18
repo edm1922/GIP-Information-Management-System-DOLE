@@ -22,9 +22,9 @@ class InternApplicationController extends Controller
         $viewer = $request->user();
         $query = InternApplication::query()->with(['partnerAgency', 'reviewer', 'approvedUser']);
 
-        // PESO reviews first; Admins only see applications after that decision.
+        // PESO reviews first; Admins see applications after that endorsement.
         if ($viewer?->isAdmin()) {
-            $query->where('status', '!=', 'pending');
+            $query->whereIn('status', ['pending_admin', 'approved', 'rejected']);
         }
 
         if ($status = $request->get('status')) {
@@ -46,7 +46,9 @@ class InternApplicationController extends Controller
 
         return response()->json([
             'applications' => InternApplicationResource::collection($applications)->response()->getData(true),
-            'pending_count' => $viewer?->isPesoManager() ? InternApplication::query()->pending()->count() : 0,
+            'pending_count' => $viewer?->isAdmin()
+                ? InternApplication::query()->where('status', 'pending_admin')->count()
+                : InternApplication::query()->pending()->count(),
         ]);
     }
 
@@ -54,26 +56,42 @@ class InternApplicationController extends Controller
     {
         $this->authorize('view', $application);
 
-        $application->load(['partnerAgency', 'reviewer', 'approvedUser', 'approvedIntern']);
+        $application->load(['partnerAgency', 'reviewer', 'pesoReviewer', 'adminReviewer', 'approvedUser', 'approvedIntern']);
 
         return response()->json([
             'application' => new InternApplicationResource($application),
-            'suggested_username' => $this->approval->suggestUsername($application),
+            'suggested_username' => in_array($application->status, ['pending', 'pending_admin'], true)
+                ? $this->approval->suggestUsername($application)
+                : null,
         ]);
     }
 
     public function approve(ApproveInternApplicationRequest $request, InternApplication $application): JsonResponse
     {
-        $this->authorize('approve', $application);
+        $actor = $request->user();
 
-        $approved = $this->approval->approve($application, $request->user(), $request->validated());
-        $approved->loadMissing(['approvedUser', 'approvedIntern', 'reviewer']);
+        if ($actor->isPesoManager()) {
+            $this->authorize('approveAsPeso', $application);
+
+            $forwarded = $this->approval->pesoApprove($application, $actor);
+            $forwarded->loadMissing(['reviewer', 'pesoReviewer', 'adminReviewer']);
+
+            return response()->json([
+                'message' => 'Application endorsed to the Admin for final approval. No credentials were sent yet.',
+                'application' => new InternApplicationResource($forwarded),
+            ]);
+        }
+
+        $this->authorize('approveAsAdmin', $application);
+
+        $approved = $this->approval->adminApprove($application, $actor, $request->validated());
+        $approved->loadMissing(['approvedUser', 'approvedIntern', 'reviewer', 'pesoReviewer', 'adminReviewer']);
 
         $emailSent = $approved->credential_email_status === 'sent';
 
         return response()->json([
             'message' => $emailSent
-                ? 'Application approved. Login credentials were emailed to '.$approved->email.'.'
+                ? 'Application finally approved. Login credentials were emailed to '.$approved->email.'.'
                 : 'Application approved, but the credential email could not be sent. Use "Resend credentials" to try again.',
             'application' => new InternApplicationResource($approved),
         ]);
@@ -87,7 +105,7 @@ class InternApplicationController extends Controller
 
         return response()->json([
             'message' => 'Application rejected.',
-            'application' => new InternApplicationResource($rejected->loadMissing('reviewer')),
+            'application' => new InternApplicationResource($rejected->loadMissing(['reviewer', 'pesoReviewer', 'adminReviewer'])),
         ]);
     }
 

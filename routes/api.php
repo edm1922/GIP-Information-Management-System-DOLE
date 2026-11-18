@@ -123,7 +123,6 @@ Route::prefix('v1')->name('api.v1.')->middleware('throttle:120,1')->group(functi
                 ->middleware('can:view,application')
                 ->name('intern-applications.show');
             Route::post('/intern-applications/{application}/approve', [InternApplicationController::class, 'approve'])
-                ->middleware('can:approve,application')
                 ->name('intern-applications.approve');
             Route::post('/intern-applications/{application}/reject', [InternApplicationController::class, 'reject'])
                 ->middleware('can:reject,application')

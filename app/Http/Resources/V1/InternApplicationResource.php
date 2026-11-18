@@ -35,6 +35,10 @@ class InternApplicationResource extends JsonResource
             'status' => $this->status,
             'reviewer' => $this->whenLoaded('reviewer', fn () => $this->reviewer?->name),
             'reviewed_at' => $this->reviewed_at?->toIso8601String(),
+            'peso_reviewer' => $this->whenLoaded('pesoReviewer', fn () => $this->pesoReviewer?->name),
+            'peso_reviewed_at' => $this->peso_reviewed_at?->toIso8601String(),
+            'admin_reviewer' => $this->whenLoaded('adminReviewer', fn () => $this->adminReviewer?->name),
+            'admin_reviewed_at' => $this->admin_reviewed_at?->toIso8601String(),
             'rejection_reason' => $this->rejection_reason,
             'approved_user_id' => $this->approved_user_id,
             'approved_intern_id' => $this->approved_intern_id,
@@ -44,7 +48,7 @@ class InternApplicationResource extends JsonResource
             'credential_email_error' => $this->credential_email_error,
             'credential_email_attempts' => $this->credential_email_attempts,
             'suggested_username' => $this->when(
-                $this->status === 'pending',
+                in_array($this->status, ['pending', 'pending_admin'], true),
                 fn () => app(InternApplicationApprovalService::class)->suggestUsername($this->resource)
             ),
             'created_at' => $this->created_at?->toIso8601String(),
