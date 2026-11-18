@@ -49,8 +49,10 @@ class DtrDay extends Model
      */
     public function scopeCounted(Builder $query): Builder
     {
+        // Days from a DTR that was returned to the intern (or rejected) are no
+        // longer held: the intern must be able to correct/re-pick those dates.
         return $query->whereHas('document', function (Builder $q) {
-            $q->where('review_status', '!=', 'rejected');
+            $q->whereNotIn('review_status', ['rejected', InternDocument::STATUS_RETURNED_TO_INTERN]);
         });
     }
 }

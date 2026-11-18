@@ -163,7 +163,7 @@ class StoreInternDocumentRequest extends FormRequest
             $validator->errors()->add(
                 'days',
                 'These days are already covered by another DTR: '.$taken->take(8)->implode(', ').
-                ($taken->count() > 8 ? '…' : '').' Rejected DTRs do not block re-submission.'
+                ($taken->count() > 8 ? '…' : '').' Rejected or returned DTRs do not block re-submission.'
             );
         }
     }

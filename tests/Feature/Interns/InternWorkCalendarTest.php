@@ -273,3 +273,26 @@ it('renders the days-only picker on the internship page', function () {
     $response->assertDontSee('Default hours per day');
     $response->assertDontSee('Apply to all');
 });
+
+it('unlocks the days of a returned DTR so the intern can correct them', function () {
+    Storage::fake('local');
+
+    [$user, $intern] = calIntern();
+    $day = now()->subDays(8)->format('Y-m-d');
+    calClaimedDtr($intern, [$day], 'returned_to_intern');
+
+    // The returned document's dates are not advertised as taken...
+    $this->actingAs($user)
+        ->get(route('my-internship.index'))
+        ->assertOk()
+        ->assertDontSee($day.'\\"', false);
+
+    // ...and the intern may submit those dates again on a corrected/new DTR.
+    $this->actingAs($user)->post(route('intern-documents.store'), [
+        'document_type_id' => calDtrType()->id,
+        'days' => [$day],
+        'file' => UploadedFile::fake()->create('dtr.pdf', 40, 'application/pdf'),
+    ])->assertSessionHasNoErrors();
+
+    expect(InternDocument::count())->toBe(2);
+});
