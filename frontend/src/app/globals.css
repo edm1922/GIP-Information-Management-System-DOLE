@@ -332,6 +332,11 @@ a {
   background: #2f6fed;
   box-shadow: 0 0 0 4px rgba(47, 111, 237, 0.16);
 }
+.notif-chip-danger {
+  border-color: #fecaca;
+  color: #b91c1c;
+  background: #fef2f2;
+}
 .notif-chip {
   font-size: 0.64rem;
   font-weight: 600;
@@ -349,13 +354,38 @@ a {
 }
 @media (max-width: 767.98px) {
   .notif-item {
-    padding: 0.7rem;
+    padding: 0.8rem 0.75rem;
   }
-  .notif-actions {
-    width: 100%;
+
+  /* Let the message use the full width and put the actions underneath it
+     instead of squeezing the text into a narrow column. */
+  .notif-item__body {
+    flex-wrap: wrap;
+    gap: 0.6rem !important;
   }
-  .notif-actions .btn {
+
+  .notif-content {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .notif-item .notif-actions {
     width: 100%;
+    margin-left: 1.25rem;
+    flex-direction: row !important;
+    align-items: center !important;
+    flex-wrap: wrap;
+  }
+
+  .notif-item .notif-actions .btn {
+    flex: 1 1 8rem;
+    width: auto !important;
+    min-height: 38px;
+  }
+
+  .notif-item h2 {
+    font-size: 0.95rem !important;
+    line-height: 1.35;
   }
 }
 @media (prefers-reduced-motion: reduce) {

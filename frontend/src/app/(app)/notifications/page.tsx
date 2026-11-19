@@ -12,6 +12,15 @@ import type { NotificationData, NotificationsResponse } from "@/lib/types";
  * Maps the API's route hints onto SPA paths. Route names are preserved from the
  * Blade app so notifications created by either frontend resolve the same way.
  */
+function notificationKindLabel(data: NotificationData): string {
+  if (data.is_expired) return "Expired";
+  const kind = typeof data.kind === "string" ? data.kind : "";
+  if (kind.includes("application")) return "Intern Application";
+  if (kind.includes("document")) return "Intern Document";
+  if (data.expiry_date) return "Expiry Reminder";
+  return "Notice";
+}
+
 function notificationTarget(data: NotificationData): string | null {
   const params = data.url_params ?? {};
   const param = (key: string) => (params[key] !== undefined ? String(params[key]) : null);
@@ -96,10 +105,10 @@ export default function NotificationsPage() {
 
   return (
     <>
-      <div className="d-flex justify-content-between align-items-center mb-4 mt-2">
+      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 mt-2">
         <div>
           <h1 className="h5 mb-1 fw-bold text-dark">Notifications</h1>
-          <p className="mb-0 text-muted small">Document expiry reminders and alerts.</p>
+          <p className="mb-0 text-muted small">Application, document and expiry alerts.</p>
         </div>
         {data && data.unread_count > 0 && (
           <button type="button" className="btn btn-sm btn-outline-secondary" onClick={markAllRead} disabled={busy !== null}>
@@ -141,7 +150,7 @@ export default function NotificationsPage() {
               <i className="far fa-bell-slash fa-2x text-muted" />
             </div>
             <h2 className="h6 mb-1 text-dark">No notifications yet</h2>
-            <p className="text-muted mb-0">You will see expiry reminders and document alerts here.</p>
+            <p className="text-muted mb-0">You will see application, document and expiry alerts here.</p>
           </div>
         ) : (
           data.data.map((notification) => {
@@ -151,12 +160,12 @@ export default function NotificationsPage() {
 
             return (
               <article key={notification.id} className={`notif-item ${isUnread ? "notif-item-unread" : ""}`}>
-                <div className="d-flex gap-3 align-items-start">
+                <div className="d-flex gap-3 align-items-start notif-item__body">
                   <div className={`notif-dot ${isUnread ? "notif-dot-unread" : ""}`} aria-hidden="true" />
 
-                  <div className="flex-grow-1">
+                  <div className="flex-grow-1 notif-content">
                     <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
-                      <span className="notif-chip">{isExpired ? "Expired" : "Expiry Reminder"}</span>
+                      <span className={`notif-chip ${isExpired ? "notif-chip-danger" : ""}`}>{notificationKindLabel(notification.data)}</span>
                       {notification.data.department_name && (
                         <span className="notif-chip">{notification.data.department_name}</span>
                       )}
