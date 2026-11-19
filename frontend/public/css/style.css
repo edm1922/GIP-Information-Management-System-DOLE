@@ -2161,21 +2161,19 @@ body.preview-overlay-open {
     }
 
     .mobile-stack-table tbody td {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 0.75rem;
+        display: block;
         min-width: 0 !important;
-        padding: 0.24rem 0.9rem;
+        padding: 0.3rem 0.9rem;
         border: 0;
-        text-align: right !important;
-        white-space: normal;
+        text-align: left !important;
+        white-space: normal !important;
         overflow-wrap: anywhere;
     }
 
     .mobile-stack-table tbody td::before {
         content: attr(data-label);
-        flex: 0 0 auto;
+        display: block;
+        margin-bottom: 0.1rem;
         color: #64748b;
         font-weight: 600;
         text-align: left;
@@ -2191,14 +2189,13 @@ body.preview-overlay-open {
         display: none;
     }
 
-    .mobile-stack-table tbody td[data-label="Actions"] {
-        flex-wrap: wrap;
-        justify-content: flex-end;
-    }
-
     .mobile-stack-table tbody td[data-label="Actions"] > div {
         flex-wrap: wrap;
-        justify-content: flex-end;
+        justify-content: flex-start;
+    }
+
+    .mobile-stack-table tbody td[data-label="Actions"] .d-flex {
+        justify-content: flex-start !important;
     }
 
     .mobile-stack-table tbody td[data-label="Actions"] form {
