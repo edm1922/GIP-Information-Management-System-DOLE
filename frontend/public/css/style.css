@@ -2103,4 +2103,43 @@ body.preview-overlay-open {
     border-color: var(--company-primary-hover, #16357C);
     color: #fff;
 }
+/* User Management: stack the account table into labelled rows on phones. */
+@media (max-width: 575.98px) {
+    .users-mgmt-table thead {
+        display: none;
+    }
 
+    .users-mgmt-table tbody tr {
+        display: block;
+        padding: 0.65rem 0;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .users-mgmt-table tbody tr:last-child {
+        border-bottom: 0;
+    }
+
+    .users-mgmt-table tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.22rem 0.9rem;
+        border: 0;
+        text-align: right !important;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .users-mgmt-table tbody td::before {
+        content: attr(data-label);
+        flex: 0 0 auto;
+        color: #64748b;
+        font-weight: 600;
+        text-align: left;
+    }
+
+    .users-mgmt-table tbody td[data-label="Actions"] > div {
+        justify-content: flex-end;
+    }
+}

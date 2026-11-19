@@ -301,7 +301,7 @@ export default function UserManagementPage() {
 
   return (
     <>
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <div>
           <h2 className="h4 mb-1 fw-bold">User Management</h2>
           <p className="text-muted mb-0" style={{ fontSize: "0.85rem" }}>
@@ -345,7 +345,7 @@ export default function UserManagementPage() {
       <div className="card shadow-sm">
         <div className="doc-table-wrapper" style={{ border: "none" }}>
           <div className="table-responsive">
-            <table className="table doc-table mb-0">
+            <table className="table doc-table mb-0 users-mgmt-table">
               <thead>
                 <tr>
                   <th style={{ width: 200 }}>Name</th>
@@ -375,7 +375,7 @@ export default function UserManagementPage() {
                     const isSelf = currentUser?.id === row.id;
                     return (
                       <tr key={row.id}>
-                        <td className="fw-medium">
+                        <td className="fw-medium" data-label="Name">
                           {row.name}
                           {isSelf && (
                             <span className="badge bg-secondary ms-1" style={{ fontSize: "0.65rem" }}>
@@ -383,13 +383,13 @@ export default function UserManagementPage() {
                             </span>
                           )}
                         </td>
-                        <td>
+                        <td data-label="Username">
                           <div className="text-muted" style={{ fontSize: "0.85rem", fontFamily: "monospace" }}>
                             {row.username}
                           </div>
                         </td>
-                        <td>{roleBadge(row.role)}</td>
-                        <td className="text-center">
+                        <td data-label="Role">{roleBadge(row.role)}</td>
+                        <td className="text-center" data-label="Status">
                           {row.is_active ? (
                             <span className="badge" style={{ background: "rgba(16, 185, 129, 0.1)", color: "#10b981", padding: "5px 10px", fontWeight: 600 }}>
                               Active
@@ -400,10 +400,10 @@ export default function UserManagementPage() {
                             </span>
                           )}
                         </td>
-                        <td className="text-center text-muted" style={{ fontSize: "0.8rem" }}>
+                        <td className="text-center text-muted" data-label="Last Active" style={{ fontSize: "0.8rem" }}>
                           {row.last_active_at ? timeAgo(row.last_active_at) : "Never"}
                         </td>
-                        <td className="text-center">
+                        <td className="text-center" data-label="Actions">
                           <div className="d-flex justify-content-center gap-2">
                             <button
                               type="button"

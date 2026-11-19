@@ -1,7 +1,7 @@
 <x-app-layout>
     <div x-data="userManager()">
         {{-- ── Page Header ── --}}
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
             <div>
                 <h2 class="h4 mb-1 fw-bold">User Management</h2>
                 <p class="text-muted mb-0" style="font-size: 0.85rem;">Manage administrative and staff accounts (Admin, PESO Manager).</p>
@@ -27,7 +27,7 @@
         {{-- ── Users Table ── --}}
         <div class="card shadow-sm">
             <div class="doc-table-wrapper" style="border: none;">
-                <table class="doc-table">
+                <table class="doc-table users-mgmt-table">
                     <thead>
                         <tr>
                             <th style="width: 200px;">Name</th>
@@ -41,15 +41,15 @@
                     <tbody>
                         @forelse($users as $user)
                             <tr>
-                                <td class="fw-medium" style="color: #1e2328;">{{ $user->name }}
+                                <td class="fw-medium" data-label="Name" style="color: #1e2328;">{{ $user->name }}
                                     @if(auth()->id() === $user->id) 
                                         <span class="badge bg-secondary ms-1" style="font-size: 0.65rem;">You</span>
                                     @endif
                                 </td>
-                                <td>
+                                <td data-label="Username">
                                     <div class="text-muted" style="font-size: 0.85rem; font-family: monospace;">{{ $user->username }}</div>
                                 </td>
-                                <td>
+                                <td data-label="Role">
                                     @if($user->role === 'admin')
                                         <span class="badge" style="background: rgba(220, 38, 38, 0.1); color: #dc2626; padding: 5px 10px; font-weight: 600;">Admin</span>
                                     @elseif($user->role === 'peso_manager')
@@ -58,19 +58,19 @@
                                         <span class="badge" style="background: rgba(14, 165, 233, 0.1); color: #0ea5e9; padding: 5px 10px; font-weight: 600;">{{ ucfirst(str_replace('_', ' ', $user->role)) }}</span>
                                     @endif
                                 </td>
-                                <td class="text-center">
+                                <td class="text-center" data-label="Status">
                                     @if($user->is_active)
                                         <span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; padding: 5px 10px; font-weight: 600;">Active</span>
                                     @else
                                         <span class="badge" style="background: rgba(107, 114, 128, 0.1); color: #6b7280; padding: 5px 10px; font-weight: 600;">Inactive</span>
                                     @endif
                                 </td>
-                                <td class="text-center">
+                                <td class="text-center" data-label="Last Active">
                                     <span class="text-muted" style="font-size: 0.8rem;">
                                         {{ $user->last_active_at ? $user->last_active_at->diffForHumans() : 'Never' }}
                                     </span>
                                 </td>
-                                <td class="text-center">
+                                <td class="text-center" data-label="Actions">
                                     <div class="d-flex justify-content-center gap-2">
                                         {{-- Edit --}}
                                         <button class="btn-doc-action"
