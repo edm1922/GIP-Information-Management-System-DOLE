@@ -242,7 +242,7 @@ export default function DashboardPage() {
                 <p className="text-muted small mb-0">No contracts are expiring within the next 30 days.</p>
               ) : (
                 <div className="table-responsive">
-                  <table className="table table-sm align-middle mb-0">
+                  <table className="table table-sm align-middle mb-0 contracts-expiring-table">
                     <thead>
                       <tr>
                         <th>Intern</th>
@@ -254,10 +254,10 @@ export default function DashboardPage() {
                     <tbody>
                       {data.expiring_contracts.map((contract) => (
                         <tr key={contract.id}>
-                          <td className="fw-semibold">{contract.name}</td>
-                          <td>{contract.partner_agency?.name ?? "—"}</td>
-                          <td className="text-end">{formatDate(contract.contract_end_date)}</td>
-                          <td className="text-end">
+                          <td className="fw-semibold" data-label="Intern">{contract.name}</td>
+                          <td data-label="Partner Agency">{contract.partner_agency?.name ?? "—"}</td>
+                          <td className="text-end" data-label="Ends">{formatDate(contract.contract_end_date)}</td>
+                          <td className="text-end" data-label="Days Left">
                             <span
                               className={`badge ${
                                 contract.days_remaining !== null && contract.days_remaining <= 7
