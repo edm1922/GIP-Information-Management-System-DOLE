@@ -1035,7 +1035,7 @@
 /* ─── Login Page Redesign ─────────────────────────────────────────── */
 
 .login-page-wrapper {
-    background: #f6f5f7 url('../image/sunstar_2026-01-15_phjjbo9m_Untitled-1.jpg') no-repeat center center fixed;
+    background: #f6f5f7 url('../image/background.png') no-repeat center center fixed;
     background-size: cover;
     display: flex;
     justify-content: center;
