@@ -170,7 +170,7 @@
                     <p class="text-muted small mb-0">No contracts are expiring within the next 30 days.</p>
                 @else
                     <div class="table-responsive">
-                        <table class="table table-sm align-middle mb-0">
+                        <table class="table table-sm align-middle mb-0 contracts-expiring-table">
                             <thead>
                                 <tr>
                                     <th>Intern</th>
@@ -183,10 +183,10 @@
                                 @foreach($expiringContracts as $contract)
                                     @php $daysLeft = $contract->days_remaining; @endphp
                                     <tr>
-                                        <td class="fw-semibold">{{ $contract->name }}</td>
-                                        <td>{{ $contract->partnerAgency?->name ?? '—' }}</td>
-                                        <td class="text-end">{{ optional($contract->contract_end_date)->format('M d, Y') ?? '—' }}</td>
-                                        <td class="text-end">
+                                        <td class="fw-semibold" data-label="Intern">{{ $contract->name }}</td>
+                                        <td data-label="Partner Agency">{{ $contract->partnerAgency?->name ?? '—' }}</td>
+                                        <td class="text-end" data-label="Ends">{{ optional($contract->contract_end_date)->format('M d, Y') ?? '—' }}</td>
+                                        <td class="text-end" data-label="Days Left">
                                             <span class="badge {{ $daysLeft !== null && $daysLeft <= 7 ? 'bg-danger' : 'bg-warning text-dark' }}">
                                                 {{ $daysLeft !== null ? $daysLeft . 'd' : '—' }}
                                             </span>
