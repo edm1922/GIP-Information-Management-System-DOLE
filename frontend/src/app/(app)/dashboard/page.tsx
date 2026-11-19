@@ -8,7 +8,7 @@ import { useDocumentDownload, useDocumentPreview } from "@/components/documents/
 import { WorkCalendar } from "@/components/intern/WorkCalendar";
 import { ApiError, api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { formatNumber, reviewBadgeClass, ucfirst } from "@/lib/format";
+import { formatNumber, reviewBadgeClass, reviewStatusLabel, ucfirst } from "@/lib/format";
 import type { DashboardResponse, InternDocument } from "@/lib/types";
 
 const brandName = process.env.NEXT_PUBLIC_BRAND_NAME ?? "GIP Information Management System (GIMS)";
@@ -552,7 +552,7 @@ function InternPortalDashboard({
           ) : (
             <>
               <div className="table-responsive">
-              <table className="table table-sm align-middle mb-0">
+              <table className="table table-sm align-middle mb-0 mobile-stack-table">
                 <thead>
                   <tr>
                     <th>Document Type</th>
@@ -565,7 +565,7 @@ function InternPortalDashboard({
                 <tbody>
                   {data.intern_documents.map((document) => (
                     <tr key={document.id}>
-                      <td className="fw-semibold">
+                      <td className="fw-semibold" data-label="Document Type">
                         <button
                           type="button"
                           className="btn btn-link p-0 text-start text-decoration-none text-dark"
@@ -579,16 +579,16 @@ function InternPortalDashboard({
                           {document.original_filename}
                         </span>
                       </td>
-                      <td className="text-muted small">
+                      <td className="text-muted small" data-label="Period">
                         {document.dtr_summary ?? document.document_period ?? "—"}
                       </td>
-                      <td className="text-muted small">{formatDate(document.created_at)}</td>
-                      <td>
+                      <td className="text-muted small" data-label="Date">{formatDate(document.created_at)}</td>
+                      <td data-label="Status">
                         <span className={`badge ${reviewBadgeClass(document.review_status)}`}>
-                          {ucfirst(document.review_status)}
+                          {reviewStatusLabel(document.review_status)}
                         </span>
                       </td>
-                      <td className="text-end text-nowrap">
+                      <td className="text-end text-nowrap" data-label="Action">
                         <button
                           type="button"
                           className="btn btn-sm btn-outline-primary"
