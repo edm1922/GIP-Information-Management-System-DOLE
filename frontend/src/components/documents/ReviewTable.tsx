@@ -96,7 +96,7 @@ export function ReviewTable({
 
       <div className="card shadow-sm">
         <div className="table-responsive">
-          <table className="table table-hover align-middle mb-0">
+          <table className="table table-hover align-middle mb-0 mobile-stack-table">
             <thead>
               <tr>
                 {showIntern && <th>Intern</th>}
@@ -127,7 +127,7 @@ export function ReviewTable({
                   return (
                     <tr key={document.id}>
                       {showIntern && (
-                        <td>
+                        <td data-label="Intern">
                           {document.intern_id ? (
                             <a href={`/interns/${document.intern_id}`}>{internLabel}</a>
                           ) : (
@@ -135,8 +135,8 @@ export function ReviewTable({
                           )}
                         </td>
                       )}
-                      <td>{document.document_type?.name ?? "—"}</td>
-                      <td style={{ fontSize: "0.82rem" }}>
+                      <td data-label="Type">{document.document_type?.name ?? "—"}</td>
+                      <td data-label="File" style={{ fontSize: "0.82rem" }}>
                         <button
                           type="button"
                           className="btn btn-link p-0 text-start text-decoration-none fw-semibold text-dark"
@@ -147,7 +147,7 @@ export function ReviewTable({
                           {document.original_filename}
                         </button>
                       </td>
-                      <td style={{ fontSize: "0.82rem" }}>
+                      <td data-label="Period" style={{ fontSize: "0.82rem" }}>
                         {document.dtr_summary ?? document.document_period ?? "—"}
                         <DtrDaysTrigger
                           days={document.dtr_days_payload}
@@ -163,8 +163,8 @@ export function ReviewTable({
                           </span>
                         )}
                       </td>
-                      <td style={{ fontSize: "0.82rem" }}>{formatDateTime(document.created_at)}</td>
-                      <td>
+                      <td data-label="Uploaded" style={{ fontSize: "0.82rem" }}>{formatDateTime(document.created_at)}</td>
+                      <td data-label="Status">
                         <span className={`badge ${reviewBadgeClass(status)}`}>{reviewStatusLabel(status)}</span>
                         {status === "pending_admin" && (
                           <div className="small text-muted mt-1">
@@ -172,7 +172,7 @@ export function ReviewTable({
                           </div>
                         )}
                       </td>
-                      <td className="text-end text-nowrap">
+                      <td className="text-end text-nowrap" data-label="Actions">
                         <button
                           type="button"
                           className="btn btn-sm btn-outline-primary"

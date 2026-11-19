@@ -329,7 +329,7 @@ export function ApplicationsView() {
 
       <div className="card shadow-sm">
         <div className="table-responsive">
-          <table className="table table-hover mb-0 align-middle">
+          <table className="table table-hover mb-0 align-middle mobile-stack-table">
             <thead>
               <tr>
                 <th>Applicant</th>
@@ -361,21 +361,21 @@ export function ApplicationsView() {
               {!loading &&
                 data?.applications.data.map((application) => (
                   <tr key={application.id}>
-                    <td>
+                    <td data-label="Applicant">
                       <div className="fw-semibold">{application.name}</div>
                       <div className="text-muted small">{application.reference}</div>
                     </td>
-                    <td className="small">{application.email}</td>
-                    <td className="small">
+                    <td className="small" data-label="Email">{application.email}</td>
+                    <td className="small" data-label="Type / Agency">
                       {application.intern_type ?? "—"}
                       <div className="text-muted">{application.partner_agency?.name ?? "No agency"}</div>
                     </td>
-                    <td className="small">{formatDate(application.created_at)}</td>
-                    <td>
+                    <td className="small" data-label="Submitted">{formatDate(application.created_at)}</td>
+                    <td data-label="Status">
                       <span className={`badge ${statusBadge(application.status)}`}>{statusLabel(application.status)}</span>
                     </td>
-                    <td className="small">{application.reviewer ?? "—"}</td>
-                    <td className="text-end">
+                    <td className="small" data-label="Reviewer">{application.reviewer ?? "—"}</td>
+                    <td className="text-end" data-label="Actions">
                       <button className="btn btn-sm btn-outline-primary" onClick={() => openReview(application)}>
                         Review
                       </button>

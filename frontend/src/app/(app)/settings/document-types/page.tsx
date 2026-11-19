@@ -137,7 +137,7 @@ export default function DocumentTypesPage() {
 
   return (
     <>
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <div>
           <h2 className="h4 mb-1 fw-bold">Document Types</h2>
           <p className="text-muted mb-0" style={{ fontSize: "0.85rem" }}>
@@ -224,7 +224,7 @@ export default function DocumentTypesPage() {
       <div className="card shadow-sm">
         <div className="doc-table-wrapper" style={{ border: "none" }}>
           <div className="table-responsive">
-            <table className="table doc-table mb-0">
+            <table className="table doc-table mb-0 mobile-stack-table">
               <thead>
                 <tr>
                   <th style={{ width: 250 }}>Name</th>
@@ -251,27 +251,27 @@ export default function DocumentTypesPage() {
                 ) : (
                   documentTypes.data.map((documentType) => (
                     <tr key={documentType.id}>
-                      <td className="fw-medium">{documentType.name}</td>
-                      <td className="text-center">
+                      <td className="fw-medium" data-label="Name">{documentType.name}</td>
+                      <td className="text-center" data-label="Code">
                         <code
                           style={{ background: "#f1f5f9", color: "#475569", padding: "3px 8px", borderRadius: 4, fontSize: "0.78rem", fontWeight: 600 }}
                         >
                           {documentType.code}
                         </code>
                       </td>
-                      <td className="text-center">
+                      <td className="text-center" data-label="Expiry?">
                         {documentType.has_expiry ? (
                           <i className="fas fa-check-circle text-success" title="Has expiry tracking" />
                         ) : (
                           <i className="fas fa-minus-circle" style={{ color: "#d1d5db" }} title="No expiry" />
                         )}
                       </td>
-                      <td className="text-center">
+                      <td className="text-center" data-label="Documents">
                         <span className="badge" style={{ background: "rgba(79, 70, 229, 0.1)", color: "#4f46e5", padding: "5px 10px", fontWeight: 600 }}>
                           {documentType.intern_documents_count ?? 0}
                         </span>
                       </td>
-                      <td className="text-center">
+                      <td className="text-center" data-label="Actions">
                         <div className="d-flex justify-content-center gap-2">
                           <button
                             type="button"

@@ -184,7 +184,7 @@ export default function AuditLogPage() {
       <div className="card shadow-sm">
         <div className="doc-table-wrapper" style={{ border: "none" }}>
           <div className="table-responsive">
-            <table className="table doc-table mb-0 align-middle">
+            <table className="table doc-table mb-0 align-middle mobile-stack-table">
               <thead>
                 <tr>
                   <th className="ps-4">User</th>
@@ -215,7 +215,7 @@ export default function AuditLogPage() {
                     const rows = changeRows(log);
                     return (
                       <tr key={log.id}>
-                        <td className="ps-4">
+                        <td className="ps-4" data-label="User">
                           <div className="d-flex align-items-center">
                             <div
                               className="avatar-sm me-3 bg-light rounded-circle d-flex align-items-center justify-content-center"
@@ -231,7 +231,7 @@ export default function AuditLogPage() {
                             </div>
                           </div>
                         </td>
-                        <td>
+                        <td data-label="Action">
                           <span
                             className={`badge rounded-pill ${style.className}`}
                             style={{ fontSize: "0.7rem", padding: "4px 10px", border: "1px solid currentColor" }}
@@ -240,7 +240,7 @@ export default function AuditLogPage() {
                             {log.action.toUpperCase()}
                           </span>
                         </td>
-                        <td style={{ minWidth: 250 }}>
+                        <td data-label="Details" style={{ minWidth: 250 }}>
                           <div className="text-dark fw-medium">{log.clean_description ?? log.description ?? "—"}</div>
                           {rows.length > 0 && (
                             <div className="mt-2 pt-2 border-top" style={{ borderTopColor: "#f3f4f6" }}>
@@ -264,7 +264,7 @@ export default function AuditLogPage() {
                             </div>
                           )}
                         </td>
-                        <td>
+                        <td data-label="Target">
                           <div className="fw-bold text-dark">{log.target_name ?? "—"}</div>
                           {log.model_type && (
                             <div className="small text-muted" style={{ fontSize: "0.7rem" }}>
@@ -272,10 +272,10 @@ export default function AuditLogPage() {
                             </div>
                           )}
                         </td>
-                        <td>
+                        <td data-label="IP Address">
                           <code className="small text-muted bg-light px-2 py-1 rounded">{log.ip_address ?? "—"}</code>
                         </td>
-                        <td className="pe-4">
+                        <td className="pe-4" data-label="Timestamp">
                           <div className="text-dark">{formatWallClock(log.created_at)}</div>
                         </td>
                       </tr>

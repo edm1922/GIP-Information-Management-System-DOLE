@@ -275,7 +275,7 @@ export function InternsView() {
 
       <div className="card shadow-sm">
         <div className="table-responsive">
-          <table className="table table-hover mb-0 align-middle">
+          <table className="table table-hover mb-0 align-middle mobile-stack-table">
             <thead>
               <tr>
                 <th>Intern</th>
@@ -296,17 +296,17 @@ export function InternsView() {
               ) : (
                 data.interns.data.map((intern) => (
                   <tr key={intern.id}>
-                    <td>
+                    <td data-label="Intern">
                       <div className="fw-medium">{intern.name}</div>
                       <div className="text-muted" style={{ fontSize: "0.8rem" }}>
                         {intern.user?.username}
                       </div>
                     </td>
-                    <td>{intern.partner_agency?.name ?? "—"}</td>
-                    <td style={{ fontSize: "0.82rem" }}>
+                    <td data-label="Partner Agency">{intern.partner_agency?.name ?? "—"}</td>
+                    <td data-label="Contract" style={{ fontSize: "0.82rem" }}>
                       {formatDate(intern.contract_start_date)} &ndash; {formatDate(intern.contract_end_date)}
                     </td>
-                    <td>
+                    <td data-label="Hours">
                       <div className="d-flex justify-content-between" style={{ fontSize: "0.8rem" }}>
                         <span>
                           {formatNumber(intern.rendered_hours)} / {formatNumber(intern.required_hours)} hrs
@@ -317,11 +317,11 @@ export function InternsView() {
                         <div className="progress-bar" role="progressbar" style={{ width: `${intern.progress_percent}%` }} />
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Status">
                       <span className={`badge ${statusBadgeClass(intern.status)}`}>{ucfirst(intern.status)}</span>
                       {showArchived && <span className="badge bg-warning text-dark ms-1">Archived</span>}
                     </td>
-                    <td className="text-end text-nowrap">
+                    <td className="text-end text-nowrap" data-label="Actions">
                       <a className="btn btn-sm btn-outline-secondary" href={`/interns/${intern.id}`} title="View intern">
                         <i className="fas fa-eye" />
                       </a>

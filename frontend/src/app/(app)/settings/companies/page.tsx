@@ -156,7 +156,7 @@ export default function PartnerAgenciesPage() {
 
   return (
     <>
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <div>
           <h2 className="h4 mb-1 fw-bold">Partner Agencies</h2>
           <p className="text-muted mb-0" style={{ fontSize: "0.85rem" }}>
@@ -195,7 +195,7 @@ export default function PartnerAgenciesPage() {
       <div className="card shadow-sm">
         <div className="doc-table-wrapper" style={{ border: "none" }}>
           <div className="table-responsive">
-            <table className="table doc-table mb-0">
+            <table className="table doc-table mb-0 mobile-stack-table">
               <thead>
                 <tr>
                   <th style={{ width: 100 }}>Code</th>
@@ -222,13 +222,13 @@ export default function PartnerAgenciesPage() {
                 ) : (
                   companies.data.map((company) => (
                     <tr key={company.id}>
-                      <td>
+                      <td data-label="Code">
                         <span className="doc-type-cell" style={{ cursor: "default" }}>
                           {company.code}
                         </span>
                       </td>
-                      <td className="fw-medium">{company.name}</td>
-                      <td className="text-center">
+                      <td className="fw-medium" data-label="Agency Name">{company.name}</td>
+                      <td className="text-center" data-label="Status">
                         {company.is_active ? (
                           <span className="badge rounded-pill" style={{ background: "#e8f5e9", color: "#2e7d32", fontSize: "0.75rem", padding: "5px 12px" }}>
                             <i className="fas fa-circle me-1" style={{ fontSize: "0.45rem", verticalAlign: "middle" }} /> Active
@@ -239,10 +239,10 @@ export default function PartnerAgenciesPage() {
                           </span>
                         )}
                       </td>
-                      <td className="text-center fw-semibold" style={{ color: "#374151" }}>
+                      <td className="text-center fw-semibold" data-label="Assigned Interns" style={{ color: "#374151" }}>
                         {company.interns_count ?? 0}
                       </td>
-                      <td className="text-center">
+                      <td className="text-center" data-label="Actions">
                         <div className="d-flex justify-content-center gap-2">
                           <button
                             type="button"
