@@ -2,6 +2,7 @@
 
 use App\Models\Intern;
 use App\Models\User;
+use App\Support\WorkingDays;
 use Illuminate\Support\Facades\Hash;
 
 beforeEach(function () {
@@ -199,4 +200,116 @@ it('defaults hours per working day to eight when omitted', function () {
 
     $intern = Intern::query()->whereHas('user', fn ($q) => $q->where('username', 'default_hours'))->firstOrFail();
     expect($intern->days_remaining_from_hours)->toBe(10.0);
+});
+
+it('counts Monday to Friday when deriving hours from a contract date range', function () {
+    // Mon 7 Sep 2026 - Fri 11 Sep 2026: five weekdays.
+    expect(WorkingDays::hoursBetween('2026-09-07', '2026-09-11', 8))->toBe(40.0)
+        // Fri 11 Sep - Mon 14 Sep: Friday and Monday only (weekend skipped).
+        ->and(WorkingDays::hoursBetween('2026-09-11', '2026-09-14', 8))->toBe(16.0)
+        // Sat 12 Sep - Sun 13 Sep: no weekdays at all.
+        ->and(WorkingDays::hoursBetween('2026-09-12', '2026-09-13', 8))->toBe(0.0);
+});
+
+it('rounds fractional hours per working day to whole hours', function () {
+    // 5 weekdays x 6.5 = 32.5 -> 33 (PHP rounds halves away from zero).
+    expect(WorkingDays::hoursBetween('2026-09-07', '2026-09-11', 6.5))->toBe(33.0)
+        // 4 weekdays x 6.5 = 26 exactly.
+        ->and(WorkingDays::hoursBetween('2026-09-08', '2026-09-11', 6.5))->toBe(26.0);
+});
+
+it('returns no derived hours for missing, invalid or reversed dates', function () {
+    expect(WorkingDays::hoursBetween(null, '2026-09-11', 8))->toBeNull()
+        ->and(WorkingDays::hoursBetween('2026-09-07', null, 8))->toBeNull()
+        ->and(WorkingDays::hoursBetween('not-a-date', '2026-09-11', 8))->toBeNull()
+        ->and(WorkingDays::hoursBetween('2026-09-07', 'also-not-a-date', 8))->toBeNull()
+        ->and(WorkingDays::hoursBetween('2026-09-14', '2026-09-07', 8))->toBeNull();
+});
+
+it('derives required hours from contract dates when none is supplied', function () {
+    $admin = User::factory()->admin()->create();
+
+    $this->actingAs($admin)->postJson('/api/v1/interns', [
+        'first_name' => 'Auto',
+        'last_name' => 'Hours',
+        'email' => 'auto.hours@example.test',
+        'username' => 'auto_hours',
+        'contract_start_date' => '2026-09-07',
+        'contract_end_date' => '2026-09-11',
+        'status' => 'active',
+    ])->assertCreated()
+        ->assertJsonPath('intern.required_hours', 40);
+
+    $intern = Intern::query()->whereHas('user', fn ($q) => $q->where('username', 'auto_hours'))->firstOrFail();
+
+    expect((int) $intern->required_hours)->toBe(40)
+        ->and((float) $intern->hours_per_workday)->toBe(8.0);
+});
+
+it('derives required hours using a fractional hours-per-workday on create', function () {
+    $admin = User::factory()->admin()->create();
+
+    $this->actingAs($admin)->postJson('/api/v1/interns', [
+        'first_name' => 'Fraction',
+        'last_name' => 'Hours',
+        'email' => 'fraction.hours@example.test',
+        'username' => 'fraction_hours',
+        'hours_per_workday' => 6.5,
+        'contract_start_date' => '2026-09-07',
+        'contract_end_date' => '2026-09-11',
+        'status' => 'active',
+    ])->assertCreated()
+        ->assertJsonPath('intern.required_hours', 33)
+        ->assertJsonPath('intern.hours_per_workday', 6.5);
+
+    expect((int) Intern::query()->whereHas('user', fn ($q) => $q->where('username', 'fraction_hours'))->firstOrFail()->required_hours)
+        ->toBe(33);
+});
+
+it('keeps an explicitly supplied required hours value when contract dates are present', function () {
+    $admin = User::factory()->admin()->create();
+
+    $this->actingAs($admin)->postJson('/api/v1/interns', [
+        'first_name' => 'Explicit',
+        'last_name' => 'Hours',
+        'email' => 'explicit.hours@example.test',
+        'username' => 'explicit_hours',
+        'required_hours' => 500,
+        'contract_start_date' => '2026-09-07',
+        'contract_end_date' => '2026-09-11',
+        'status' => 'active',
+    ])->assertCreated()
+        ->assertJsonPath('intern.required_hours', 500);
+});
+
+it('falls back to the configured default when no contract dates are supplied', function () {
+    $admin = User::factory()->admin()->create();
+
+    $this->actingAs($admin)->postJson('/api/v1/interns', [
+        'first_name' => 'Default',
+        'last_name' => 'Range',
+        'email' => 'default.range@example.test',
+        'username' => 'default_range',
+        'status' => 'active',
+    ])->assertCreated()
+        ->assertJsonPath('intern.required_hours', (int) config('internship.default_required_hours', 486));
+});
+
+it('derives required hours on update when omitted but contract dates are supplied', function () {
+    $admin = User::factory()->admin()->create();
+    $internUser = User::factory()->intern()->create(['username' => 'update_auto_hours']);
+    $intern = apiCreateIntern($internUser, ['required_hours' => 486]);
+
+    // Fri 11 Sep 2026 - Mon 14 Sep 2026: two weekdays x the intern's 8 hours/day.
+    $this->actingAs($admin)->putJson("/api/v1/interns/{$intern->id}", [
+        'first_name' => 'Update',
+        'last_name' => 'Auto',
+        'username' => 'update_auto_hours',
+        'contract_start_date' => '2026-09-11',
+        'contract_end_date' => '2026-09-14',
+        'status' => 'active',
+    ])->assertOk()
+        ->assertJsonPath('intern.required_hours', 16);
+
+    expect((int) $intern->fresh()->required_hours)->toBe(16);
 });

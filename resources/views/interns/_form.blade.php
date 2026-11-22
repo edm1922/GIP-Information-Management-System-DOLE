@@ -70,19 +70,20 @@
     </div>
     <div class="col-md-3">
         <label class="form-label">Contract Start</label>
-        <input type="date" name="contract_start_date" class="form-control" value="{{ old('contract_start_date', $intern?->contract_start_date?->format('Y-m-d')) }}">
+        <input type="date" name="contract_start_date" id="intern-contract-start" class="form-control" value="{{ old('contract_start_date', $intern?->contract_start_date?->format('Y-m-d')) }}">
     </div>
     <div class="col-md-3">
         <label class="form-label">Contract End</label>
-        <input type="date" name="contract_end_date" class="form-control" value="{{ old('contract_end_date', $intern?->contract_end_date?->format('Y-m-d')) }}">
+        <input type="date" name="contract_end_date" id="intern-contract-end" class="form-control" value="{{ old('contract_end_date', $intern?->contract_end_date?->format('Y-m-d')) }}">
     </div>
-    <div class="col-md-2">
+    <div class="col-md-3">
         <label class="form-label">Required Hours</label>
-        <input type="number" name="required_hours" class="form-control" value="{{ old('required_hours', $intern?->required_hours ?? config('internship.default_required_hours')) }}" min="1">
+        <input type="number" name="required_hours" id="intern-required-hours" class="form-control" value="{{ old('required_hours', $intern?->required_hours ?? config('internship.default_required_hours')) }}" min="1" aria-describedby="intern-required-hours-help">
+        <div class="form-text" id="intern-required-hours-help">Auto-calculated from contract dates × hours/day (Mon–Fri only).</div>
     </div>
     <div class="col-md-2">
         <label class="form-label">Hours / Working Day</label>
-        <input type="number" name="hours_per_workday" class="form-control" value="{{ old('hours_per_workday', $intern?->hours_per_workday ?? config('internship.hours_per_workday')) }}" min="1" max="24" step="0.5" title="Used only for the remaining-days estimate.">
+        <input type="number" name="hours_per_workday" id="intern-hours-per-workday" class="form-control" value="{{ old('hours_per_workday', $intern?->hours_per_workday ?? config('internship.hours_per_workday')) }}" min="1" max="24" step="0.5" title="Used only for the remaining-days estimate.">
     </div>
     <div class="col-md-2">
         <label class="form-label">Rendered Hours</label>
@@ -123,3 +124,9 @@
         <div class="form-text">Optional. Recorded on the intern's profile and used when matching program records.</div>
     </div>
 </div>
+
+@once
+    @push('scripts')
+        <script src="{{ asset('js/intern-form.js') }}?v={{ filemtime(public_path('js/intern-form.js')) }}"></script>
+    @endpush
+@endonce

@@ -4,11 +4,14 @@ import { useState } from "react";
 
 import { dateInputValue } from "@/lib/format";
 import type { Company, Intern } from "@/lib/types";
+import { contractEndBeforeStart, requiredHoursFromContract } from "@/lib/workingDays";
 
 export const INTERN_STATUSES = ["active", "inactive", "completed"] as const;
 export const INTERN_TYPES = ["GIP", "OJT", "SPES", "Work Immersion"] as const;
 export const DEFAULT_REQUIRED_HOURS = 486;
 const PASSWORD_SUFFIX = process.env.NEXT_PUBLIC_DEFAULT_PASSWORD_SUFFIX ?? "gip";
+/** Fields that re-derive Required Hours when edited. */
+const HOURS_DEPENDENCY_FIELDS = new Set(["contract_start_date", "contract_end_date", "hours_per_workday"]);
 
 export type InternFormValues = Record<string, string>;
 
@@ -51,8 +54,22 @@ function initialValues(intern?: Intern | null): InternFormValues {
 export function InternForm({ intern, agencies, submitting, errors, onSubmit, submitLabel, cancelHref }: InternFormProps) {
   const [values, setValues] = useState<InternFormValues>(() => initialValues(intern));
 
-  const set = (field: string) => (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-    setValues((current) => ({ ...current, [field]: event.target.value }));
+  const set = (field: string) => (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const value = event.target.value;
+
+    setValues((current) => {
+      const next = { ...current, [field]: value };
+
+      // Only re-derive Required Hours after one of its dependency fields is edited;
+      // the saved value from `initialValues` is left alone on mount.
+      if (HOURS_DEPENDENCY_FIELDS.has(field)) {
+        const calculated = requiredHoursFromContract(next.contract_start_date, next.contract_end_date, next.hours_per_workday);
+        if (calculated !== null) next.required_hours = String(calculated);
+      }
+
+      return next;
+    });
+  };
 
   const errorFor = (field: string) => errors[field]?.[0];
 
@@ -61,6 +78,7 @@ export function InternForm({ intern, agencies, submitting, errors, onSubmit, sub
 
   const defaultPassword = `${(values.last_name || "lastname").toLowerCase()}${PASSWORD_SUFFIX}`;
   const hasErrors = Object.keys(errors).length > 0;
+  const contractRangeInvalid = contractEndBeforeStart(values.contract_start_date, values.contract_end_date);
 
   return (
     <form
@@ -191,13 +209,22 @@ export function InternForm({ intern, agencies, submitting, errors, onSubmit, sub
             Contract End
           </label>
           <input id="contract_end_date" type="date" className={inputClass("contract_end_date")} value={values.contract_end_date} onChange={set("contract_end_date")} />
-          {errorFor("contract_end_date") && <div className="invalid-feedback d-block">{errorFor("contract_end_date")}</div>}
+          {errorFor("contract_end_date") ? (
+            <div className="invalid-feedback d-block">{errorFor("contract_end_date")}</div>
+          ) : contractRangeInvalid ? (
+            <div className="form-text text-danger">Contract end must be on or after contract start.</div>
+          ) : null}
         </div>
         <div className="col-md-2">
           <label className="form-label" htmlFor="required_hours">
             Required Hours
           </label>
           <input id="required_hours" type="number" min={1} className={inputClass("required_hours")} value={values.required_hours} onChange={set("required_hours")} />
+          {errorFor("required_hours") ? (
+            <div className="invalid-feedback d-block">{errorFor("required_hours")}</div>
+          ) : (
+            <div className="form-text">Auto-calculated from contract dates × hours/day (Mon–Fri only).</div>
+          )}
         </div>
         <div className="col-md-2">
           <label className="form-label" htmlFor="hours_per_workday">
@@ -212,7 +239,7 @@ export function InternForm({ intern, agencies, submitting, errors, onSubmit, sub
             className={inputClass("hours_per_workday")}
             value={values.hours_per_workday}
             onChange={set("hours_per_workday")}
-            title="Used only for the remaining-days estimate; DTR hours are still assigned per day."
+            title="Used for the remaining-days estimate and to auto-calculate Required Hours; DTR hours are still assigned per day."
           />
           {errorFor("hours_per_workday") && <div className="invalid-feedback d-block">{errorFor("hours_per_workday")}</div>}
         </div>

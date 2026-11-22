@@ -3,6 +3,8 @@
 namespace App\Http\Requests;
 
 use App\Models\Intern;
+use App\Support\WorkingDays;
+use DateTimeInterface;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -15,21 +17,51 @@ class StoreInternRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if (! $this->filled('required_hours')) {
-            $this->merge([
-                'required_hours' => (int) config('internship.default_required_hours', 486),
-            ]);
-        }
+        $hoursPerWorkday = $this->filled('hours_per_workday')
+            ? (float) $this->input('hours_per_workday')
+            : (float) config('internship.hours_per_workday', 8);
 
         if (! $this->filled('hours_per_workday')) {
             $this->merge([
-                'hours_per_workday' => (float) config('internship.hours_per_workday', 8),
+                'hours_per_workday' => $hoursPerWorkday,
+            ]);
+        }
+
+        if (! $this->filled('required_hours')) {
+            $this->merge([
+                'required_hours' => $this->calculatedRequiredHours($hoursPerWorkday)
+                    ?? (int) config('internship.default_required_hours', 486),
             ]);
         }
 
         if (! $this->filled('status')) {
             $this->merge(['status' => 'active']);
         }
+    }
+
+    /**
+     * Derive required hours from the contract date range when both dates are
+     * supplied; null otherwise (callers fall back to the configured default).
+     */
+    private function calculatedRequiredHours(float $hoursPerWorkday): ?int
+    {
+        $start = $this->contractDateValue('contract_start_date');
+        $end = $this->contractDateValue('contract_end_date');
+
+        if ($start === null || $end === null) {
+            return null;
+        }
+
+        $hours = WorkingDays::hoursBetween($start, $end, $hoursPerWorkday);
+
+        return $hours === null ? null : (int) $hours;
+    }
+
+    private function contractDateValue(string $key): string|DateTimeInterface|null
+    {
+        $value = $this->input($key);
+
+        return is_string($value) || $value instanceof DateTimeInterface ? $value : null;
     }
 
     public function rules(): array
