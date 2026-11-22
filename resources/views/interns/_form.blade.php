@@ -81,6 +81,10 @@
         <input type="number" name="required_hours" class="form-control" value="{{ old('required_hours', $intern?->required_hours ?? config('internship.default_required_hours')) }}" min="1">
     </div>
     <div class="col-md-2">
+        <label class="form-label">Hours / Working Day</label>
+        <input type="number" name="hours_per_workday" class="form-control" value="{{ old('hours_per_workday', $intern?->hours_per_workday ?? config('internship.hours_per_workday')) }}" min="1" max="24" step="0.5" title="Used only for the remaining-days estimate.">
+    </div>
+    <div class="col-md-2">
         <label class="form-label">Rendered Hours</label>
         <input type="number" name="rendered_hours" class="form-control" value="{{ old('rendered_hours', $intern?->rendered_hours ?? 0) }}" min="0">
     </div>

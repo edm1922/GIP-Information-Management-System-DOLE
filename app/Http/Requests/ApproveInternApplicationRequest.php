@@ -26,6 +26,7 @@ class ApproveInternApplicationRequest extends FormRequest
 
             // Monitoring / classification
             'required_hours' => ['nullable', 'integer', 'min:1', 'max:10000'],
+            'hours_per_workday' => ['nullable', 'numeric', 'min:1', 'max:24'],
             'status' => ['nullable', Rule::in(Intern::STATUSES)],
             'intern_type' => ['nullable', 'string', Rule::in(Intern::INTERN_TYPES)],
             'batch' => ['nullable', 'string', 'max:50'],

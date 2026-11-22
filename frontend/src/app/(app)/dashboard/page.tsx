@@ -453,7 +453,7 @@ function InternPortalDashboard({
                       <i className="fas fa-check-circle me-1" /> Target achieved
                     </span>
                   ) : (
-                    <>{formatNumber(hoursRemaining)} hrs &bull; 8-hr working day basis</>
+                    <>{formatNumber(hoursRemaining)} hrs &bull; {formatNumber(intern.hours_per_workday)}-hr working day basis</>
                   )}
                 </div>
               </div>

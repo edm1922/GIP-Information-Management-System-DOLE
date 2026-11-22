@@ -27,6 +27,7 @@ class Intern extends Model
         'contract_start_date',
         'contract_end_date',
         'required_hours',
+        'hours_per_workday',
         'rendered_hours',
         'status',
         'intern_type',
@@ -44,6 +45,7 @@ class Intern extends Model
             'contract_start_date' => 'date',
             'contract_end_date' => 'date',
             'required_hours' => 'integer',
+            'hours_per_workday' => 'float',
             'rendered_hours' => 'float',
         ];
     }
@@ -97,11 +99,14 @@ class Intern extends Model
     }
 
     /**
-     * Convert hours remaining to working days (8 hrs = 1 working day).
+     * Convert hours remaining to working days using the intern's configured
+     * hours-per-workday (defaults to config('internship.hours_per_workday')).
      */
     public function getDaysRemainingFromHoursAttribute(): float
     {
-        return round($this->hours_remaining / 8, 1);
+        $hoursPerDay = (float) ($this->hours_per_workday ?: config('internship.hours_per_workday', 8));
+
+        return round($this->hours_remaining / max($hoursPerDay, 0.01), 1);
     }
 
     /**

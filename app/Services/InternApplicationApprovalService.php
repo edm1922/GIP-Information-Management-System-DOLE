@@ -119,6 +119,7 @@ class InternApplicationApprovalService
                 'contract_start_date' => $data['contract_start_date'] ?? null,
                 'contract_end_date' => $data['contract_end_date'] ?? null,
                 'required_hours' => $data['required_hours'] ?? config('internship.default_required_hours', 486),
+                'hours_per_workday' => $data['hours_per_workday'] ?? config('internship.hours_per_workday', 8),
                 'rendered_hours' => 0,
                 'status' => $data['status'] ?? 'active',
                 'intern_type' => $data['intern_type'] ?? $locked->intern_type,

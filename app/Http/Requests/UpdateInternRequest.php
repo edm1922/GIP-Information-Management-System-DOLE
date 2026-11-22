@@ -50,6 +50,7 @@ class UpdateInternRequest extends FormRequest
 
             // Monitoring
             'required_hours' => ['required', 'integer', 'min:1', 'max:10000'],
+            'hours_per_workday' => ['nullable', 'numeric', 'min:1', 'max:24'],
             'rendered_hours' => ['nullable', 'integer', 'min:0'],
 
             // Classification

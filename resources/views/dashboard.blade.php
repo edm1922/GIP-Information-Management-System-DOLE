@@ -306,7 +306,7 @@
                                     @if($internSelf->hours_remaining <= 0)
                                         <span class="text-success fw-semibold"><i class="fas fa-check-circle me-1"></i> Target achieved</span>
                                     @else
-                                        {{ $internSelf->hours_remaining }} hrs &bull; 8-hr working day basis
+                                        {{ $internSelf->hours_remaining }} hrs &bull; {{ $internSelf->hours_per_workday }}-hr working day basis
                                     @endif
                                 </div>
                             </div>

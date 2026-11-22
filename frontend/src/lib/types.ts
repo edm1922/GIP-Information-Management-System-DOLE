@@ -203,6 +203,7 @@ export interface Intern {
   contract_end_date: string | null;
   contract_months: number | null;
   required_hours: number;
+  hours_per_workday: number;
   rendered_hours: number;
   hours_remaining: number;
   days_remaining_from_hours: number;

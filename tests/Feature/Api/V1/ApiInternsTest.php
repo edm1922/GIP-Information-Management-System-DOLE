@@ -151,3 +151,52 @@ it('permanently deletes an intern through the API for admins only', function () 
     $this->assertDatabaseMissing('interns', ['id' => $intern->id]);
     expect($internUser->fresh()->trashed())->toBeTrue();
 });
+it('uses a per-intern hours-per-working-day setting for the days estimate', function () {
+    $admin = User::factory()->admin()->create();
+
+    $this->actingAs($admin)->postJson('/api/v1/interns', [
+        'first_name' => 'Part',
+        'last_name' => 'Timer',
+        'email' => 'part.timer@example.test',
+        'username' => 'part_timer',
+        'required_hours' => 100,
+        'hours_per_workday' => 6.5,
+        'status' => 'active',
+    ])->assertCreated()
+        ->assertJsonPath('intern.hours_per_workday', 6.5);
+
+    $intern = Intern::query()->whereHas('user', fn ($q) => $q->where('username', 'part_timer'))->firstOrFail();
+
+    expect((float) $intern->hours_per_workday)->toBe(6.5)
+        ->and($intern->days_remaining_from_hours)->toBe(round(100 / 6.5, 1));
+
+    $this->actingAs($admin)->putJson("/api/v1/interns/{$intern->id}", [
+        'first_name' => 'Part',
+        'last_name' => 'Timer',
+        'username' => 'part_timer',
+        'required_hours' => 100,
+        'hours_per_workday' => 5,
+        'status' => 'active',
+    ])->assertOk()
+        ->assertJsonPath('intern.hours_per_workday', 5);
+
+    expect($intern->fresh()->days_remaining_from_hours)->toBe(20.0);
+});
+
+it('defaults hours per working day to eight when omitted', function () {
+    $admin = User::factory()->admin()->create();
+    $internUser = User::factory()->intern()->create(['username' => 'default-hours-user']);
+
+    $this->actingAs($admin)->postJson('/api/v1/interns', [
+        'first_name' => 'Default',
+        'last_name' => 'Hours',
+        'email' => 'default.hours@example.test',
+        'username' => 'default_hours',
+        'required_hours' => 80,
+        'status' => 'active',
+    ])->assertCreated()
+        ->assertJsonPath('intern.hours_per_workday', 8);
+
+    $intern = Intern::query()->whereHas('user', fn ($q) => $q->where('username', 'default_hours'))->firstOrFail();
+    expect($intern->days_remaining_from_hours)->toBe(10.0);
+});

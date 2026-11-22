@@ -16,6 +16,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Default hours per working day
+    |--------------------------------------------------------------------------
+    |
+    | Used to convert remaining hours to an estimated number of working days
+    | when an intern has no per-intern override. Admins can edit the value on
+    | each intern record.
+    |
+    */
+    'hours_per_workday' => (float) env('INTERNSHIP_HOURS_PER_WORKDAY', 8),
+
+    /*
+    |--------------------------------------------------------------------------
     | Completion threshold (percent)
     |--------------------------------------------------------------------------
     |

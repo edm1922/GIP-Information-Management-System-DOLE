@@ -104,7 +104,7 @@ export default function MyInternshipPage() {
                       {daysFromHours(intern.hours_remaining)}
                       <small className="text-muted">
                         {" "}
-                        ({formatNumber(intern.hours_remaining)} hrs &bull; 8-hr day)
+                        ({formatNumber(intern.hours_remaining)} hrs &bull; {formatNumber(intern.hours_per_workday)}-hr day)
                       </small>
                     </>
                   )}

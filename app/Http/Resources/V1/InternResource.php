@@ -33,6 +33,7 @@ class InternResource extends JsonResource
             'contract_end_date' => $this->contract_end_date?->format('Y-m-d'),
             'contract_months' => $this->contract_months,
             'required_hours' => (int) $this->required_hours,
+            'hours_per_workday' => (float) ($this->hours_per_workday ?: config('internship.hours_per_workday', 8)),
             'rendered_hours' => (float) $this->rendered_hours,
             'hours_remaining' => (float) $this->hours_remaining,
             'days_remaining_from_hours' => (float) $this->days_remaining_from_hours,

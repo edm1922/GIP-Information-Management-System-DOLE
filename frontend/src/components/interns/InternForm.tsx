@@ -36,6 +36,7 @@ function initialValues(intern?: Intern | null): InternFormValues {
     contract_start_date: dateInputValue(intern?.contract_start_date),
     contract_end_date: dateInputValue(intern?.contract_end_date),
     required_hours: String(intern?.required_hours ?? DEFAULT_REQUIRED_HOURS),
+    hours_per_workday: String(intern?.hours_per_workday ?? 8),
     rendered_hours: String(intern?.rendered_hours ?? 0),
     status: intern?.status ?? "active",
     school: intern?.school ?? "",
@@ -197,6 +198,23 @@ export function InternForm({ intern, agencies, submitting, errors, onSubmit, sub
             Required Hours
           </label>
           <input id="required_hours" type="number" min={1} className={inputClass("required_hours")} value={values.required_hours} onChange={set("required_hours")} />
+        </div>
+        <div className="col-md-2">
+          <label className="form-label" htmlFor="hours_per_workday">
+            Hours / Working Day
+          </label>
+          <input
+            id="hours_per_workday"
+            type="number"
+            min={1}
+            max={24}
+            step={0.5}
+            className={inputClass("hours_per_workday")}
+            value={values.hours_per_workday}
+            onChange={set("hours_per_workday")}
+            title="Used only for the remaining-days estimate; DTR hours are still assigned per day."
+          />
+          {errorFor("hours_per_workday") && <div className="invalid-feedback d-block">{errorFor("hours_per_workday")}</div>}
         </div>
         <div className="col-md-2">
           <label className="form-label" htmlFor="rendered_hours">
