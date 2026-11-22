@@ -8,6 +8,7 @@ use App\Models\Intern;
 use App\Models\InternDocument;
 use App\Models\InternDocumentReviewEvent;
 use App\Models\User;
+use App\Support\DocumentFileType;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,15 @@ class InternDocumentUploadService
         $file = $validatedData['file'];
         $documentType = DocumentType::findOrFail((int) $validatedData['document_type_id']);
 
+        // SEC-01a: persist the canonical type verified by the FormRequest, not
+        // the raw sniffed value. A content/extension mismatch must never be
+        // stored (the request layer rejects it first; this is the guard for
+        // any other caller of this service).
+        $mimeType = DocumentFileType::canonicalMime($file);
+        if ($mimeType === null) {
+            throw new RuntimeException('Unsupported file content.');
+        }
+
         $extension = strtolower($file->getClientOriginalExtension() ?: 'bin');
         $directory = "intern-docs/{$intern->id}";
         $baseFilename = $this->buildBaseFilename($intern->id, $documentType->code, $extension);
@@ -44,6 +54,7 @@ class InternDocumentUploadService
                 $user,
                 $relativePath,
                 $resolvedFilename,
+                $mimeType,
                 $validatedData
             ) {
                 $stored = Storage::disk('local')->put($relativePath, file_get_contents($file->getRealPath()));
@@ -60,7 +71,7 @@ class InternDocumentUploadService
                     'system_filename' => $resolvedFilename,
                     'page_count' => 1,
                     'file_size_bytes' => (int) $file->getSize(),
-                    'mime_type' => $file->getMimeType() ?: 'application/octet-stream',
+                    'mime_type' => $mimeType,
                     'status' => 'active',
                     'document_period' => $validatedData['document_period'] ?? null,
                     'review_status' => InternDocument::STATUS_PENDING_PESO,
@@ -111,6 +122,13 @@ class InternDocumentUploadService
      */
     public function replaceFile(InternDocument $document, UploadedFile $file): string
     {
+        // SEC-01a: only a canonical, content-verified type may replace the
+        // existing evidence file's metadata.
+        $mimeType = DocumentFileType::canonicalMime($file);
+        if ($mimeType === null) {
+            throw new RuntimeException('Unsupported file content.');
+        }
+
         $extension = strtolower($file->getClientOriginalExtension() ?: 'bin');
         $directory = "intern-docs/{$document->intern_id}";
         $baseFilename = $this->buildBaseFilename($document->intern_id, $document->documentType?->code ?? 'DOC', $extension);
@@ -127,7 +145,7 @@ class InternDocumentUploadService
             'original_filename' => $file->getClientOriginalName(),
             'system_filename' => $resolvedFilename,
             'file_size_bytes' => (int) $file->getSize(),
-            'mime_type' => $file->getMimeType() ?: 'application/octet-stream',
+            'mime_type' => $mimeType,
         ])->save();
 
         return $relativePath;

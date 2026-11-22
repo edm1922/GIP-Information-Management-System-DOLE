@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Http\Requests\UserRequest;
 use App\Services\AuditService;
+use App\Support\OtherSessionInvalidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
@@ -35,11 +37,13 @@ class UserController extends Controller
     public function store(UserRequest $request)
     {
         $validated = $request->validated();
-        
-        // Auto-generate default password: {last_name}{suffix}
-        $defaultPassword = strtolower($validated['last_name']) . config('brand.password_suffix');
-        $validated['password'] = Hash::make($defaultPassword);
-        
+
+        // SEC-02: credentials are random and one-time; never derived from user
+        // data (which made them guessable from the last name).
+        $temporaryPassword = Str::password(16);
+        $validated['password'] = Hash::make($temporaryPassword);
+        $validated['must_change_password'] = true;
+
         $validated['is_active'] = $request->boolean('is_active', true);
         
         $user = User::create($validated);
@@ -47,7 +51,7 @@ class UserController extends Controller
         AuditService::log('created', "Created new user", $user);
 
         return redirect()->route('settings.users.index')
-                         ->with('success', 'User created successfully. Default password is: ' . $defaultPassword);
+                         ->with('success', 'User created successfully. Temporary password: ' . $temporaryPassword);
     }
 
     /**
@@ -130,16 +134,23 @@ class UserController extends Controller
                              ->with('error', 'You cannot reset your own password here. Please use normal password change mechanisms.');
         }
 
-        $defaultPassword = strtolower($user->last_name) . config('brand.password_suffix');
+        // SEC-02: random one-time credential, and the user must rotate it on
+        // the next login.
+        $temporaryPassword = Str::password(16);
         
         $user->update([
-            'password' => Hash::make($defaultPassword),
+            'password' => Hash::make($temporaryPassword),
+            'must_change_password' => true,
         ]);
+
+        // SEC-07: a reset credential must not leave the target's live sessions
+        // authenticated with the old password.
+        OtherSessionInvalidator::invalidate($user);
 
         AuditService::log('updated', "Reset password", $user);
 
         return redirect()->route('settings.users.index')
-                         ->with('success', 'Password reset successfully for ' . $user->name . '. Their new password is: ' . $defaultPassword);
+                         ->with('success', 'Password reset successfully for ' . $user->name . '. Temporary password: ' . $temporaryPassword);
     }
 
     /**

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Resources\V1\UserResource;
 use App\Services\AuditService;
+use App\Support\OtherSessionInvalidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -58,11 +59,21 @@ class AuthController extends Controller
 
     public function storeForcePasswordChange(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'password' => ['required', 'confirmed', 'min:8', Password::defaults()],
-        ]);
-
         $user = $request->user();
+
+        // SEC-07: the current password is only waived while an account is
+        // genuinely forced to rotate a temporary credential. For every other
+        // user this is an ordinary password change and must prove the old one.
+        $rules = [
+            'password' => ['required', 'confirmed', Password::defaults()],
+        ];
+
+        if (! $user->must_change_password) {
+            $rules['current_password'] = ['required', 'current_password'];
+        }
+
+        $validated = $request->validate($rules);
+
         $before = [
             'must_change_password' => (bool) $user->must_change_password,
         ];
@@ -71,6 +82,12 @@ class AuthController extends Controller
             'password' => Hash::make($validated['password']),
             'must_change_password' => false,
         ]);
+
+        // SEC-07: sessions created with the old credential must not survive.
+        OtherSessionInvalidator::invalidate(
+            $user,
+            $request->hasSession() ? $request->session()->getId() : null
+        );
 
         AuditService::log('updated', 'Completed forced password change.', $user, [
             'before' => $before,
@@ -95,6 +112,12 @@ class AuthController extends Controller
         $request->user()->update([
             'password' => Hash::make($validated['password']),
         ]);
+
+        // SEC-07: other sessions keep working with the old password otherwise.
+        OtherSessionInvalidator::invalidate(
+            $request->user(),
+            $request->hasSession() ? $request->session()->getId() : null
+        );
 
         AuditService::log('updated', 'Changed account password.', $request->user());
 

@@ -8,6 +8,7 @@ use App\Models\InternApplication;
 use App\Models\User;
 use App\Notifications\InternApplicationApproved;
 use App\Notifications\InternApplicationPesoApproved;
+use App\Support\OtherSessionInvalidator;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -243,6 +244,12 @@ class InternApplicationApprovalService
                 'credential_email_error' => null,
             ])->save();
         });
+
+        // SEC-07: this endpoint rotates the linked account's credential, so any
+        // session authenticated with the previous temporary password must end.
+        if ($approvedUser = $application->fresh()->approvedUser) {
+            OtherSessionInvalidator::invalidate($approvedUser);
+        }
 
         $this->sendCredentials($application->fresh(), $plainPassword, $application->reviewer);
 

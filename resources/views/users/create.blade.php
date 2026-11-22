@@ -67,7 +67,7 @@
                 </div>
                 
                 <div class="alert alert-info mt-3" role="alert" style="font-size: 0.85rem;">
-                    <i class="fas fa-info-circle me-1"></i> A default password will be automatically generated as <strong>{last_name}{{ config('brand.password_suffix') }}</strong>.
+                    <i class="fas fa-info-circle me-1"></i> A random temporary password will be generated and shown to you once after the account is created.
                 </div>
             </div>
             

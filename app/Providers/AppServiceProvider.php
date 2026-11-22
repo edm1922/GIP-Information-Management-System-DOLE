@@ -23,8 +23,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // SEC-05: one strong policy for every credential path (forced change,
+        // self-service change, admin-created accounts). Paths must not add
+        // weaker local min:X overrides on top of this.
         Password::defaults(function () {
-            return Password::min(5);
+            return Password::min(12)->mixedCase()->numbers()->symbols();
         });
 
         // Public registration is unauthenticated, so it gets its own strict

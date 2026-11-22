@@ -48,7 +48,8 @@ it('creates an intern together with a linked login account', function () {
     expect($user->role)->toBe('intern')
         ->and($user->must_change_password)->toBeTrue()
         ->and((int) $intern->user_id)->toBe((int) $user->id)
-        ->and(Hash::check(strtolower('Dela Cruz').config('brand.password_suffix'), $user->password))->toBeTrue();
+        // SEC-02: the temporary password is random, never lastname+suffix.
+        ->and(Hash::check(strtolower('Dela Cruz').config('brand.password_suffix'), $user->password))->toBeFalse();
 });
 
 it('blocks non-admins from creating interns', function () {

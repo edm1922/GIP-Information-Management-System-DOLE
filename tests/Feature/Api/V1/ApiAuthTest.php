@@ -133,8 +133,8 @@ it('enforces forced password changes for API consumers', function () {
 
     $this->actingAs($user)
         ->postJson('/api/v1/auth/force-password-change', [
-            'password' => 'new-password',
-            'password_confirmation' => 'new-password',
+            'password' => 'Str0ng!Passw0rd',
+            'password_confirmation' => 'Str0ng!Passw0rd',
         ])
         ->assertOk();
 
@@ -151,13 +151,13 @@ it('updates the password with the current password', function () {
     $this->actingAs($user)
         ->putJson('/api/v1/auth/password', [
             'current_password' => 'password',
-            'password' => 'new-password',
-            'password_confirmation' => 'new-password',
+            'password' => 'Str0ng!Passw0rd',
+            'password_confirmation' => 'Str0ng!Passw0rd',
         ])
         ->assertOk()
         ->assertJsonPath('status', 'password-updated');
 
-    expect(Hash::check('new-password', $user->fresh()->password))->toBeTrue();
+    expect(Hash::check('Str0ng!Passw0rd', $user->fresh()->password))->toBeTrue();
 });
 
 it('updates the authenticated user profile', function () {

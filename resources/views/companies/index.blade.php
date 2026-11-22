@@ -174,13 +174,13 @@
                     // Check for edit form validation errors via spatie/laravel-html or old inputs later if needed
                     @if($errors->any() && old('_method') === 'PUT')
                         this.editUrl = '{{ url("settings/companies") }}/{{ old("id") }}';
-                        this.editData = {
-                            id: '{{ old("id") }}',
-                            name: '{!! addslashes(old("name")) !!}',
-                            code: '{!! addslashes(old("code")) !!}',
-                            is_active: {{ old('is_active') ? 'true' : 'false' }},
-                            updated_at: ''
-                        };
+                        this.editData = {{ Js::from([
+                            'id' => old('id'),
+                            'name' => old('name'),
+                            'code' => old('code'),
+                            'is_active' => (bool) old('is_active'),
+                            'updated_at' => '',
+                        ]) }};
                     @endif
                 },
 

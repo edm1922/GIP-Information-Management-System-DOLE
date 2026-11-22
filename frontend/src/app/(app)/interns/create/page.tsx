@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { InternForm, type InternFormValues } from "@/components/interns/InternForm";
@@ -10,12 +9,13 @@ import type { Company, Intern } from "@/lib/types";
 
 export default function CreateInternPage() {
   const { isAdmin, status } = useAuth();
-  const router = useRouter();
 
   const [agencies, setAgencies] = useState<Company[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [loadError, setLoadError] = useState<string | null>(null);
+  // The API returns the random one-time password exactly once, on creation.
+  const [created, setCreated] = useState<{ id: number; password: string | null } | null>(null);
 
   useEffect(() => {
     if (status !== "authenticated" || !isAdmin) return;
@@ -35,12 +35,59 @@ export default function CreateInternPage() {
     );
   }
 
+  if (created) {
+    return (
+      <>
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h2 className="h4 mb-1 fw-bold">Intern Created</h2>
+            <p className="text-muted mb-0" style={{ fontSize: "0.85rem" }}>
+              The intern record and its login account are ready.
+            </p>
+          </div>
+        </div>
+
+        <div className="card shadow-sm">
+          <div className="card-body">
+            <div className="alert alert-success mb-3" role="status">
+              <i className="fas fa-check-circle me-2" />
+              The intern was created successfully.
+            </div>
+
+            {created.password ? (
+              <div className="alert alert-warning mb-3" role="alert">
+                <p className="mb-1 fw-semibold">Temporary password (shown once)</p>
+                <code style={{ fontSize: "1rem" }}>{created.password}</code>
+                <p className="mb-0 mt-2 small text-muted">
+                  Copy it now and give it to the intern. It cannot be shown again; a reset issues a new one-time password.
+                </p>
+              </div>
+            ) : (
+              <div className="alert alert-info mb-3" role="alert">
+                The temporary password is sent through the configured credential channel and is not shown here.
+              </div>
+            )}
+
+            <div className="d-flex gap-2">
+              <a className="btn btn-brand" href={`/interns/${created.id}`}>
+                Open intern profile
+              </a>
+              <a className="btn btn-outline-secondary" href="/interns">
+                Back to interns
+              </a>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   const submit = async (values: InternFormValues) => {
     setSubmitting(true);
     setErrors({});
     try {
-      const response = await api.post<{ intern: Intern }>("/api/v1/interns", values);
-      router.push(`/interns/${response.intern.id}`);
+      const response = await api.post<{ intern: Intern; default_password?: string | null }>("/api/v1/interns", values);
+      setCreated({ id: response.intern.id, password: response.default_password ?? null });
     } catch (requestError) {
       if (requestError instanceof ApiError) {
         setErrors(requestError.errors);

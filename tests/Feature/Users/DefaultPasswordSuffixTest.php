@@ -3,7 +3,16 @@
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
-it('creates intern accounts using the configured default password suffix', function () {
+/*
+|--------------------------------------------------------------------------
+| SEC-02 — created/reset credentials must be random, never derived
+|--------------------------------------------------------------------------
+| This file used to assert the old `lastname + brand.password_suffix`
+| derivation. That behaviour was removed in Remediation Round 1, so the
+| expectations now assert the opposite (random, non-derivable) contract.
+*/
+
+it('creates intern accounts with a random password, not a name-derived one', function () {
     config(['brand.password_suffix' => 'gip']);
 
     $admin = User::factory()->admin()->create();
@@ -19,11 +28,12 @@ it('creates intern accounts using the configured default password suffix', funct
 
     $user = User::where('username', 'msantos')->firstOrFail();
 
-    expect(Hash::check('santosgip', $user->password))->toBeTrue()
-        ->and($user->must_change_password)->toBeTrue();
+    expect($user->must_change_password)->toBeTrue()
+        ->and(Hash::check('santosgip', $user->password))->toBeFalse()
+        ->and(Hash::check('santos', $user->password))->toBeFalse();
 });
 
-it('resets a user password to the configured suffix', function () {
+it('resets a user password to a random value, not the configured suffix', function () {
     config(['brand.password_suffix' => 'gip']);
 
     $admin = User::factory()->admin()->create();
@@ -33,5 +43,5 @@ it('resets a user password to the configured suffix', function () {
         ->post(route('settings.users.reset-password', $user))
         ->assertRedirect(route('settings.users.index'));
 
-    expect(Hash::check('reyesgip', $user->fresh()->password))->toBeTrue();
+    expect(Hash::check('reyesgip', $user->fresh()->password))->toBeFalse();
 });

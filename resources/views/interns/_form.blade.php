@@ -35,7 +35,7 @@
     <div class="col-md-4">
         <label class="form-label">Username <span class="text-danger">*</span></label>
         <input type="text" name="username" class="form-control" value="{{ $val('username') }}" required>
-        <div class="form-text">Default password: <code>{{ strtolower(old('last_name', $user?->last_name ?? 'lastname')) . config('brand.password_suffix') }}</code></div>
+        <div class="form-text">A random temporary password is generated for the login account; resetting it issues a new one.</div>
     </div>
     <div class="col-md-4">
         <label class="form-label">Email Address <span class="text-danger">*</span></label>

@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\DocumentType;
 use App\Models\DtrDay;
 use App\Models\Intern;
+use App\Support\DocumentFileType;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -89,11 +90,24 @@ class StoreInternDocumentRequest extends FormRequest
             return;
         }
 
-        $extension = strtolower($file->getClientOriginalExtension() ?: '');
-        $allowed = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'csv'];
+        // Invalid uploads are already reported by the `file` rule; reading their
+        // MIME type would throw because the temporary file is gone.
+        if (! $file->isValid()) {
+            return;
+        }
 
-        if (! in_array($extension, $allowed, true)) {
-            $validator->errors()->add('file', 'Unsupported file type. Allowed: PDF, JPG, JPEG, PNG, DOC, DOCX, XLS, XLSX, CSV.');
+        // SEC-01a: the extension alone proves nothing. The content type
+        // detected from the file's magic bytes must match the type the
+        // extension claims to be (e.g. an HTML payload named .pdf is rejected,
+        // and so is foo.php.pdf because its content is PHP/plain text).
+        if (! DocumentFileType::hasAllowedExtension($file)) {
+            $validator->errors()->add('file', DocumentFileType::ERROR_MESSAGE);
+
+            return;
+        }
+
+        if (DocumentFileType::canonicalMime($file) === null) {
+            $validator->errors()->add('file', DocumentFileType::ERROR_MESSAGE);
         }
     }
 

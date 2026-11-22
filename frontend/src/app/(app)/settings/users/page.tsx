@@ -31,8 +31,6 @@ const EMPTY_FORM: UserFormValues = {
 
 type ConfirmState = { kind: "toggle" | "delete" | "reset"; user: User } | null;
 
-const passwordSuffix = process.env.NEXT_PUBLIC_DEFAULT_PASSWORD_SUFFIX ?? "gip";
-
 function roleBadge(role: string) {
   if (role === "admin") return <span className="badge" style={{ background: "rgba(220, 38, 38, 0.1)", color: "#dc2626", padding: "5px 10px", fontWeight: 600 }}>Admin</span>;
   if (role === "peso_manager") return <span className="badge" style={{ background: "rgba(245, 158, 11, 0.1)", color: "#f59e0b", padding: "5px 10px", fontWeight: 600 }}>PESO Manager</span>;
@@ -177,8 +175,8 @@ export default function UserManagementPage() {
       };
     }
     return {
-      title: "Reset Password to Default",
-      message: `Are you sure you want to reset the password for ${state.user.name} back to the default?`,
+      title: "Reset Password",
+      message: `Are you sure you want to reset the password for ${state.user.name} to a new random temporary password?`,
       submit: "Reset Password",
     };
   };
@@ -328,7 +326,7 @@ export default function UserManagementPage() {
           {success}
           {defaultPassword && (
             <div className="small mt-1">
-              Default password: <code>{defaultPassword}</code>
+              Temporary password (shown once): <code>{defaultPassword}</code>
             </div>
           )}
         </div>
@@ -492,11 +490,8 @@ export default function UserManagementPage() {
           {formMessage && <div className="alert alert-danger">{formMessage}</div>}
           {renderForm(createValues, setCreateValues, "create")}
           <div className="alert alert-info mt-3 mb-0" role="alert" style={{ fontSize: "0.85rem" }}>
-            <i className="fas fa-info-circle me-1" /> A default password will be automatically generated as{" "}
-            <strong>
-              (last name){passwordSuffix}
-            </strong>
-            .
+            <i className="fas fa-info-circle me-1" /> A random temporary password will be generated and shown once after
+            the user is created.
           </div>
         </form>
       </Modal>
@@ -534,7 +529,7 @@ export default function UserManagementPage() {
                 Reset User Password
               </p>
               <p className="mb-0 text-muted" style={{ fontSize: "0.8rem" }}>
-                Resets the user&apos;s password to the default <code>(last name){passwordSuffix}</code>.
+                Resets the user&apos;s password to a new random temporary password, shown once.
               </p>
             </div>
             <button

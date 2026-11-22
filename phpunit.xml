@@ -11,6 +11,12 @@
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
         </testsuite>
+        <!-- Security regression suite (WP-4 + Remediation Round 1). Runs in the
+             default suite so CI certifies the remediation; it used to be
+             reachable only by explicit path. -->
+        <testsuite name="Security">
+            <directory>tests/Security</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>

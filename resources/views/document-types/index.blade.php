@@ -186,12 +186,12 @@
                     // Reopen edit modal with old inputs if validation fails on update
                     @if($errors->any() && old('_method') === 'PUT')
                         this.editUrl = '{{ url("settings/document-types") }}/{{ old("id") }}';
-                        this.editData = {
-                            id: '{{ old("id") }}',
-                            name: '{!! addslashes(old("name")) !!}',
-                            code: '{!! addslashes(old("code")) !!}',
-                            has_expiry: {{ old('has_expiry') ? 'true' : 'false' }}
-                        };
+                        this.editData = {{ Js::from([
+                            'id' => old('id'),
+                            'name' => old('name'),
+                            'code' => old('code'),
+                            'has_expiry' => (bool) old('has_expiry'),
+                        ]) }};
                         setTimeout(() => {
                             var modal = new bootstrap.Modal(document.getElementById('editDocumentTypeModal'));
                             modal.show();

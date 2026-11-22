@@ -4,7 +4,9 @@ namespace App\Http\Requests;
 
 use App\Models\DtrDay;
 use App\Models\InternDocument;
+use App\Support\DocumentFileType;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 
 class ResubmitInternDocumentRequest extends FormRequest
@@ -39,10 +41,13 @@ class ResubmitInternDocumentRequest extends FormRequest
             }
 
             $file = $this->file('file');
-            if ($file) {
-                $extension = strtolower($file->getClientOriginalExtension() ?: '');
-                if (! in_array($extension, ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx', 'xls', 'xlsx', 'csv'], true)) {
-                    $validator->errors()->add('file', 'Unsupported file type.');
+            // Invalid uploads are already reported by the `file` rule; reading
+            // their MIME type would throw because the temporary file is gone.
+            if ($file instanceof UploadedFile && $file->isValid()) {
+                // SEC-01a: same per-extension content check as the store path.
+                if (! DocumentFileType::hasAllowedExtension($file)
+                    || DocumentFileType::canonicalMime($file) === null) {
+                    $validator->errors()->add('file', DocumentFileType::ERROR_MESSAGE);
                 }
             }
 

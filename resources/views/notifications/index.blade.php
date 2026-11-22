@@ -116,15 +116,54 @@
             @php
                 $data = $notification->data;
                 $isUnread = is_null($notification->read_at);
-                $url = isset($data['url_route'])
-                    ? route($data['url_route'], $data['url_params'] ?? [])
-                    : ($data['url'] ?? route('notifications.index'));
 
-                // Smart repair for old absolute URLs missing the project subdirectory
-                if (!isset($data['url_route']) && str_contains((string) $url, 'department-documents')) {
-                    $query = parse_url((string) $url, PHP_URL_QUERY);
-                    $url = route('department-documents.index') . ($query ? '?' . $query : '');
+                // Only render links that resolve to a same-origin path. Route-based
+                // URLs are absolute, so same-origin ones are normalised back to a
+                // path; anything else (javascript:, data:, protocol-relative,
+                // foreign host) is not rendered as an anchor at all.
+                $isInternalPath = static function ($path): bool {
+                    return is_string($path)
+                        && str_starts_with($path, '/')
+                        && !str_starts_with($path, '//')
+                        && !str_starts_with($path, '/\\');
+                };
+
+                $candidate = isset($data['url_route'])
+                    ? route($data['url_route'], $data['url_params'] ?? [])
+                    : ($data['url'] ?? null);
+
+                // Smart repair for old absolute URLs missing the project subdirectory.
+                // The legacy route may no longer exist: never call route() for it unless
+                // it is registered, otherwise a future legacy row would 500 the page.
+                if (!isset($data['url_route']) && is_string($candidate) && str_contains($candidate, 'department-documents')) {
+                    if (Route::has('department-documents.index')) {
+                        $query = parse_url($candidate, PHP_URL_QUERY);
+                        $candidate = route('department-documents.index') . ($query ? '?' . $query : '');
+                    } else {
+                        $candidate = null;
+                    }
                 }
+
+                $linkUrl = null;
+                if (is_string($candidate) && $candidate !== '') {
+                    if ($isInternalPath($candidate)) {
+                        $linkUrl = $candidate;
+                    } else {
+                        $parts = parse_url($candidate);
+                        $origin = parse_url(request()->getSchemeAndHttpHost()) ?: [];
+
+                        $sameOrigin = is_array($parts)
+                            && isset($parts['scheme'], $parts['host'], $parts['path'])
+                            && strtolower($parts['scheme']) === strtolower((string) ($origin['scheme'] ?? ''))
+                            && strtolower($parts['host']) === strtolower((string) ($origin['host'] ?? ''))
+                            && ($parts['port'] ?? null) === ($origin['port'] ?? null);
+
+                        if ($sameOrigin && $isInternalPath($parts['path'])) {
+                            $linkUrl = $parts['path'] . (isset($parts['query']) ? '?' . $parts['query'] : '');
+                        }
+                    }
+                }
+
                 $isExpired = (bool) ($data['is_expired'] ?? false);
             @endphp
 
@@ -157,9 +196,15 @@
                     </div>
 
                     <div class="notif-actions d-flex flex-column flex-md-row align-items-stretch gap-2">
-                        <a href="{{ $url }}" class="btn btn-outline-danger">
-                            <i class="fas fa-arrow-up-right-from-square me-1" aria-hidden="true"></i>Open
-                        </a>
+                        @if ($linkUrl !== null)
+                            <a href="{{ $linkUrl }}" class="btn btn-outline-danger">
+                                <i class="fas fa-arrow-up-right-from-square me-1" aria-hidden="true"></i>Open
+                            </a>
+                        @else
+                            <span class="btn btn-outline-secondary disabled" aria-disabled="true" title="This notification has no internal destination">
+                                <i class="fas fa-arrow-up-right-from-square me-1" aria-hidden="true"></i>Open
+                            </span>
+                        @endif
                         @if ($isUnread)
                             <form method="POST"
                                 action="{{ route('notifications.mark-as-read', ['id' => $notification->id, 'redirect' => 'back']) }}">

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Services\AuditService;
+use App\Support\OtherSessionInvalidator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
@@ -23,11 +24,21 @@ class ForcePasswordChangeController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'password' => ['required', 'confirmed', 'min:8', Password::defaults()],
-        ]);
-
         $user = $request->user();
+
+        // SEC-07: the current password is only waived while an account is
+        // genuinely forced to rotate a temporary credential. For every other
+        // user this is an ordinary password change and must prove the old one.
+        $rules = [
+            'password' => ['required', 'confirmed', Password::defaults()],
+        ];
+
+        if (! $user->must_change_password) {
+            $rules['current_password'] = ['required', 'current_password'];
+        }
+
+        $validated = $request->validate($rules);
+
         $before = [
             'must_change_password' => (bool) $user->must_change_password,
         ];
@@ -36,6 +47,12 @@ class ForcePasswordChangeController extends Controller
             'password' => Hash::make($validated['password']),
             'must_change_password' => false,
         ]);
+
+        // SEC-07: sessions created with the old credential must not survive.
+        OtherSessionInvalidator::invalidate(
+            $user,
+            $request->hasSession() ? $request->session()->getId() : null
+        );
 
         AuditService::log('updated', 'Completed forced password change.', $user, [
             'before' => $before,

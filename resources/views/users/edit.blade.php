@@ -75,14 +75,14 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <p class="mb-1 fw-bold text-dark" style="font-size: 0.85rem;">Reset User Password</p>
-                            <p class="mb-0 text-muted" style="font-size: 0.8rem;">Resets the user's password to the default <code>{lastname}{{ config('brand.password_suffix') }}</code>.</p>
+                            <p class="mb-0 text-muted" style="font-size: 0.8rem;">Resets the user's password to a new random temporary password, shown once.</p>
                         </div>
                         <button type="button" class="btn btn-sm btn-outline-danger shadow-sm"
                                 @click="openConfirmModal(
                                     '{{ url('settings/users') }}/' + editData.id + '/reset-password',
                                     'POST',
-                                    'Reset Password to Default',
-                                    'Are you sure you want to reset the password for <strong>' + editData.first_name + ' ' + editData.last_name + '</strong> back to the default?',
+                                    'Reset Password',
+                                    'Are you sure you want to reset the password for <strong>' + editData.first_name + ' ' + editData.last_name + '</strong> to a new random temporary password?',
                                     'Reset Password',
                                     'danger',
                                     'fa-key'

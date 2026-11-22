@@ -18,7 +18,14 @@ use App\Models\User;
 uses(
     Tests\TestCase::class,
     Illuminate\Foundation\Testing\RefreshDatabase::class,
-)->in(__DIR__ . '/Feature');
+)->in(
+    __DIR__ . '/Feature',
+    // The security regression suite lives outside tests/Feature so it can be
+    // run on its own by path; bind it here as well so it is a first-class
+    // suite in the default phpunit run. Security test files also declare
+    // their own uses() line, which is idempotent.
+    __DIR__ . '/Security',
+);
 
 /*
 |--------------------------------------------------------------------------

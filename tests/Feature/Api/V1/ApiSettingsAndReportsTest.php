@@ -126,10 +126,10 @@ it('updates a document type whose name and code are unchanged', function () {
         ->and($type->fresh()->has_expiry)->toBeTrue();
 });
 
-it('creates admin users and reports the generated default password', function () {
+it('creates admin users and reports a random one-time password', function () {
     $admin = User::factory()->admin()->create();
 
-    $this->actingAs($admin)
+    $response = $this->actingAs($admin)
         ->postJson('/api/v1/settings/users', [
             'first_name' => 'New',
             'last_name' => 'Manager',
@@ -137,11 +137,18 @@ it('creates admin users and reports the generated default password', function ()
             'role' => 'peso_manager',
             'is_active' => true,
         ])
-        ->assertCreated()
-        ->assertJsonPath('default_password', strtolower('Manager').config('brand.password_suffix'));
+        ->assertCreated();
 
     $created = User::where('username', 'api-manager')->firstOrFail();
-    expect($created->role)->toBe('peso_manager');
+    $returned = $response->json('default_password');
+    $derived = strtolower('Manager').config('brand.password_suffix');
+
+    expect($created->role)->toBe('peso_manager')
+        ->and($created->must_change_password)->toBeTrue()
+        // SEC-02: the one-time password is random, never name-derived.
+        ->and($returned)->not->toBe($derived)
+        ->and(str_contains(strtolower((string) $returned), 'manager'))->toBeFalse()
+        ->and(Hash::check((string) $returned, $created->password))->toBeTrue();
 });
 
 it('protects the last administrator and prevents self-deletion', function () {

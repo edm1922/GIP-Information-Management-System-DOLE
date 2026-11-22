@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\ForcePasswordChange;
 use Illuminate\Foundation\Application;
@@ -34,6 +35,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // Enable Sanctum SPA stateful authentication for API routes from configured
         // stateful domains (first-party cookie/session auth for the Next.js frontend).
         $middleware->statefulApi();
+
+        // SEC-06: a deactivated account must lose access immediately, even when
+        // it still holds a valid session. Registered before the forced-password
+        // middleware so inactive accounts are rejected first. Unauthenticated
+        // requests (login, public registration, health check) pass through.
+        $middleware->appendToGroup('web', EnsureAccountIsActive::class);
+        $middleware->appendToGroup('api', EnsureAccountIsActive::class);
 
         $middleware->appendToGroup('web', ForcePasswordChange::class);
         $middleware->appendToGroup('api', ForcePasswordChange::class);

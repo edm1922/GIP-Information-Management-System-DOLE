@@ -22,6 +22,22 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class InternDocumentController extends Controller
 {
+    /**
+     * Content types that are safe to render inline in the browser.
+     *
+     * SEC-01b: only passive document/image types are allowed. Everything else —
+     * including legacy rows whose content-detected type was never validated
+     * (e.g. text/html, image/svg+xml) — is forced to download as
+     * application/octet-stream so a stored payload can never execute on the
+     * application origin. This list is server-controlled, never taken from the
+     * request or the stored row.
+     */
+    private const INLINE_MIME_TYPES = [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+    ];
+
     public function __construct(
         private readonly InternDocumentUploadService $uploadService,
         private readonly InternNotificationService $notifier,
@@ -244,32 +260,59 @@ class InternDocumentController extends Controller
     {
         $this->authorize('download', $document);
 
-        $mimeType = $document->mime_type;
-        if (! $mimeType || $mimeType === 'application/octet-stream') {
+        // A DB row whose file is gone must 404, not 500 (Storage::response()
+        // calls size(), which throws UnableToRetrieveMetadata otherwise).
+        abort_unless(Storage::disk('local')->exists($document->file_path), 404);
+
+        // Normalise the stored type (ignore any charset/parameter suffix) and
+        // only fall back to the filename extension for legacy rows that never
+        // recorded one. The served type is always chosen from the server-side
+        // allowlist below, never echoed straight from the database.
+        $mimeType = strtolower(trim(explode(';', (string) $document->mime_type)[0]));
+        if ($mimeType === '' || $mimeType === 'application/octet-stream') {
             $ext = strtolower(pathinfo($document->original_filename, PATHINFO_EXTENSION));
             $mimeType = match ($ext) {
                 'pdf' => 'application/pdf',
                 'jpg', 'jpeg' => 'image/jpeg',
                 'png' => 'image/png',
-                'gif' => 'image/gif',
-                'webp' => 'image/webp',
-                'svg' => 'image/svg+xml',
-                'csv' => 'text/csv',
                 default => 'application/octet-stream',
             };
         }
 
-        return Storage::disk('local')->response($document->file_path, $document->original_filename, [
-            'Content-Type' => $mimeType,
-            'Content-Disposition' => 'inline; filename="'.addslashes($document->original_filename).'"',
-        ]);
+        $inline = in_array($mimeType, self::INLINE_MIME_TYPES, true);
+
+        // Inline types are passive (they cannot script the application origin),
+        // so they only need the resource restrictions. The `sandbox` directive
+        // is reserved for downloads, where it never affects a PDF viewer.
+        $contentSecurityPolicy = $inline
+            ? "default-src 'none'"
+            : "default-src 'none'; sandbox";
+
+        // The filesystem response builds Content-Disposition with Symfony's
+        // makeDisposition(), so the filename is always safely encoded.
+        return Storage::disk('local')->response(
+            $document->file_path,
+            $document->original_filename,
+            [
+                'Content-Type' => $inline ? $mimeType : 'application/octet-stream',
+                'X-Content-Type-Options' => 'nosniff',
+                'Content-Security-Policy' => $contentSecurityPolicy,
+                'Cross-Origin-Resource-Policy' => 'same-origin',
+            ],
+            $inline ? 'inline' : 'attachment',
+        );
     }
 
     public function download(InternDocument $document): StreamedResponse
     {
         $this->authorize('download', $document);
 
-        return Storage::disk('local')->download($document->file_path, $document->original_filename);
+        abort_unless(Storage::disk('local')->exists($document->file_path), 404);
+
+        return Storage::disk('local')->download($document->file_path, $document->original_filename, [
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Security-Policy' => "default-src 'none'; sandbox",
+        ]);
     }
 
     private function selfServiceRouteFor(InternDocument $document): string

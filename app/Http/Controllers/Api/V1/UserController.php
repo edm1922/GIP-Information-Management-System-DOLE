@@ -9,9 +9,11 @@ use App\Models\InternApplication;
 use App\Models\User;
 use App\Notifications\InternApplicationSubmitted;
 use App\Services\AuditService;
+use App\Support\OtherSessionInvalidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
@@ -28,8 +30,11 @@ class UserController extends Controller
     {
         $validated = $request->validated();
 
-        $defaultPassword = strtolower($validated['last_name']).config('brand.password_suffix');
-        $validated['password'] = Hash::make($defaultPassword);
+        // SEC-02: credentials are random and one-time; they are never derived
+        // from user data (which made them guessable from the last name).
+        $temporaryPassword = Str::password(16);
+        $validated['password'] = Hash::make($temporaryPassword);
+        $validated['must_change_password'] = true;
         $validated['is_active'] = $request->boolean('is_active', true);
 
         $user = User::create($validated);
@@ -45,7 +50,7 @@ class UserController extends Controller
 
         return response()->json([
             'message' => 'User created successfully.',
-            'default_password' => $defaultPassword,
+            'default_password' => $temporaryPassword,
             'user' => new UserResource($user),
         ], 201);
     }
@@ -109,17 +114,22 @@ class UserController extends Controller
             ], 422);
         }
 
-        $defaultPassword = strtolower($user->last_name).config('brand.password_suffix');
+        $temporaryPassword = Str::password(16);
 
         $user->update([
-            'password' => Hash::make($defaultPassword),
+            'password' => Hash::make($temporaryPassword),
+            'must_change_password' => true,
         ]);
+
+        // SEC-07: a reset credential must not leave the target's live sessions
+        // authenticated with the old password.
+        OtherSessionInvalidator::invalidate($user);
 
         AuditService::log('updated', 'Reset password', $user);
 
         return response()->json([
             'message' => 'Password reset successfully for '.$user->name.'.',
-            'default_password' => $defaultPassword,
+            'default_password' => $temporaryPassword,
         ]);
     }
 

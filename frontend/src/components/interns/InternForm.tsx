@@ -9,7 +9,6 @@ import { contractEndBeforeStart, requiredHoursFromContract } from "@/lib/working
 export const INTERN_STATUSES = ["active", "inactive", "completed"] as const;
 export const INTERN_TYPES = ["GIP", "OJT", "SPES", "Work Immersion"] as const;
 export const DEFAULT_REQUIRED_HOURS = 486;
-const PASSWORD_SUFFIX = process.env.NEXT_PUBLIC_DEFAULT_PASSWORD_SUFFIX ?? "gip";
 /** Fields that re-derive Required Hours when edited. */
 const HOURS_DEPENDENCY_FIELDS = new Set(["contract_start_date", "contract_end_date", "hours_per_workday"]);
 
@@ -76,7 +75,6 @@ export function InternForm({ intern, agencies, submitting, errors, onSubmit, sub
   const inputClass = (field: string) => `form-control ${errorFor(field) ? "is-invalid" : ""}`;
   const selectClass = (field: string) => `form-select ${errorFor(field) ? "is-invalid" : ""}`;
 
-  const defaultPassword = `${(values.last_name || "lastname").toLowerCase()}${PASSWORD_SUFFIX}`;
   const hasErrors = Object.keys(errors).length > 0;
   const contractRangeInvalid = contractEndBeforeStart(values.contract_start_date, values.contract_end_date);
 
@@ -136,7 +134,9 @@ export function InternForm({ intern, agencies, submitting, errors, onSubmit, sub
             <div className="invalid-feedback d-block">{errorFor("username")}</div>
           ) : (
             <div className="form-text">
-              {intern ? "Default password on reset" : "Default password"}: <code>{defaultPassword}</code>
+              {intern
+                ? "Passwords are reset by an administrator to a new one-time password."
+                : "A random one-time password is generated and shown once after the account is created."}
             </div>
           )}
         </div>

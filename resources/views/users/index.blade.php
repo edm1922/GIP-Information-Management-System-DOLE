@@ -187,16 +187,16 @@
                 init() {
                     @if($errors->any() && old('_method') === 'PUT')
                         this.editUrl = '{{ url("settings/users") }}/{{ old("id") }}';
-                        this.editData = {
-                            id: '{{ old("id") }}',
-                            first_name: '{!! addslashes(old("first_name")) !!}',
-                            middle_name: '{!! addslashes(old("middle_name")) !!}',
-                            last_name: '{!! addslashes(old("last_name")) !!}',
-                            suffix: '{!! addslashes(old("suffix")) !!}',
-                            username: '{!! addslashes(old("username")) !!}',
-                            role: '{!! addslashes(old("role")) !!}',
-                            is_active: {{ old('is_active', 1) ? 'true' : 'false' }}
-                        };
+                        this.editData = {{ Js::from([
+                            'id' => old('id'),
+                            'first_name' => old('first_name'),
+                            'middle_name' => old('middle_name'),
+                            'last_name' => old('last_name'),
+                            'suffix' => old('suffix'),
+                            'username' => old('username'),
+                            'role' => old('role'),
+                            'is_active' => (bool) old('is_active', 1),
+                        ]) }};
                         var modal = new bootstrap.Modal(document.getElementById('editUserModal'));
                         modal.show();
                     @elseif($errors->any() && old('_method') !== 'PUT')

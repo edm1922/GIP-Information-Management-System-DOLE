@@ -15,6 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class InternController extends Controller
 {
@@ -85,8 +86,10 @@ class InternController extends Controller
 
         $validated = $request->validated();
 
-        $intern = DB::transaction(function () use ($validated) {
-            $user = $this->createInternAccount($validated);
+        $temporaryPassword = null;
+
+        $intern = DB::transaction(function () use ($validated, &$temporaryPassword) {
+            $user = $this->createInternAccount($validated, $temporaryPassword);
 
             return Intern::create([
                 'user_id' => $user->id,
@@ -112,6 +115,7 @@ class InternController extends Controller
 
         return response()->json([
             'message' => 'Intern created successfully.',
+            'default_password' => $temporaryPassword,
             'intern' => new InternResource($intern),
         ], 201);
     }
@@ -215,9 +219,10 @@ class InternController extends Controller
         return response()->json(['agencies' => CompanyResource::collection($agencies)]);
     }
 
-    private function createInternAccount(array $validated): User
+    private function createInternAccount(array $validated, ?string &$temporaryPassword = null): User
     {
-        $defaultPassword = strtolower($validated['last_name']).config('brand.password_suffix');
+        // SEC-02: random one-time credential; never derived from user data.
+        $temporaryPassword = Str::password(16);
 
         return User::create([
             'first_name' => $validated['first_name'],
@@ -226,7 +231,7 @@ class InternController extends Controller
             'suffix' => $validated['suffix'] ?? null,
             'email' => $validated['email'] ?? null,
             'username' => $validated['username'],
-            'password' => Hash::make($defaultPassword),
+            'password' => Hash::make($temporaryPassword),
             'role' => 'intern',
             'is_active' => true,
             'must_change_password' => true,
