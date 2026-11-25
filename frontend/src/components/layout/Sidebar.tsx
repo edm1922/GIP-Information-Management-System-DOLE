@@ -116,7 +116,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
                     type="button"
                     className={`nav-link ${pathname.startsWith("/settings") ? "active" : ""}`}
                     onClick={() => setSettingsOpen((value) => !value)}
-                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
                   >
                     <span>
                       <i className="fas fa-cogs" /> Settings
@@ -149,7 +149,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
                     type="button"
                     className={`nav-link ${pathname === "/reports/audit-log" ? "active" : ""}`}
                     onClick={() => setReportsOpen((value) => !value)}
-                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
                   >
                     <span>
                       <i className="fas fa-chart-bar" /> Reports

@@ -527,6 +527,25 @@ svg {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Sidebar rows stay inside the drawer at every width. Bootstrap gives
+   .nav-link a 10px margin on each side, so a 100%-wide dropdown trigger (or any
+   future fixed-width child) would sit 10px past the scroll container and show a
+   horizontal scrollbar. Top-level rows get an explicit width that already
+   accounts for those margins, which keeps the full-width row look and the
+   chevron right-aligned without changing the drawer width or vertical
+   scrolling; the explicit overflow-x is a second line of defence. */
+.sidebar-drawer {
+  overflow-x: hidden;
+}
+.sidebar-drawer > .flex-grow-1 {
+  overflow-x: hidden;
+}
+.sidebar-drawer > .flex-grow-1 > .nav > .nav-item > .nav-link {
+  box-sizing: border-box;
+  width: calc(100% - 20px);
+  max-width: 100%;
+}
+
 /* -------------------------------------------------------------------------
    Phones / small tablets
    ------------------------------------------------------------------------- */
